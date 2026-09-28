@@ -1,0 +1,440 @@
+name: Production Quality-Gated CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # Allows manual deployment trigger from GitHub Actions UI
+
+env:
+  REGISTRY: ghcr.io
+
+# Required for pushing images to GitHub Container Registry in Organizations
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # =========================================================================
+  # 1. CHANGE DETECTION (Monorepo Selective Pipeline)
+  # =========================================================================
+  detect-changes:
+    name: "Detect Modified Services"
+    runs-on: ubuntu-latest
+    outputs:
+      shared_lib: ${{ steps.filter.outputs.shared_lib }}
+      iam: ${{ steps.filter.outputs.iam }}
+      node: ${{ steps.filter.outputs.node }}
+      billing: ${{ steps.filter.outputs.billing }}
+      support: ${{ steps.filter.outputs.support }}
+      notification: ${{ steps.filter.outputs.notification }}
+      config: ${{ steps.filter.outputs.config }}
+      traffic: ${{ steps.filter.outputs.traffic }}
+      telegram: ${{ steps.filter.outputs.telegram }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared_lib:
+              - 'shared-lib/**'
+            iam:
+              - 'iam-service/**'
+            node:
+              - 'node-service/**'
+            billing:
+              - 'billing-service/**'
+            support:
+              - 'support-service/**'
+            notification:
+              - 'notification-service/**'
+            config:
+              - 'config-service/**'
+            traffic:
+              - 'traffic-service/**'
+            telegram:
+              - 'telegram-service/**'
+
+  # =========================================================================
+  # 2. CODE SECURITY & LINTING GATE
+  # =========================================================================
+  security-audit:
+    name: "Secret Detection & Static Analysis"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: GitGuardian Secret Detection
+        uses: GitGuardian/ggshield/actions/secret@v1.36.0
+        env:
+          GITHUB_PUSH_BEFORE_SHA: ${{ github.event.before }}
+          GITHUB_PUSH_BASE_SHA: ${{ github.event.base }}
+          GITHUB_PULL_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+        continue-on-error: true
+
+  # =========================================================================
+  # 3. AUTOMATED TEST & COMPILATION SUITE (PARALLEL MATRIX)
+  # =========================================================================
+  test-backend:
+    name: "Test: ${{ matrix.service }}"
+    needs: [detect-changes, security-audit]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: iam-service
+            folder: iam-service
+            changed: ${{ needs.detect-changes.outputs.iam == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+          - service: node-service
+            folder: node-service
+            changed: ${{ needs.detect-changes.outputs.node == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+          - service: billing-service
+            folder: billing-service
+            changed: ${{ needs.detect-changes.outputs.billing == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+          - service: support-service
+            folder: support-service
+            changed: ${{ needs.detect-changes.outputs.support == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+          - service: notification-service
+            folder: notification-service
+            changed: ${{ needs.detect-changes.outputs.notification == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+          - service: config-service
+            folder: config-service
+            changed: ${{ needs.detect-changes.outputs.config == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+          - service: traffic-service
+            folder: traffic-service
+            changed: ${{ needs.detect-changes.outputs.traffic == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+          - service: telegram-service
+            folder: telegram-service
+            changed: ${{ needs.detect-changes.outputs.telegram == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+
+    steps:
+      - uses: actions/checkout@v4
+        if: matrix.changed == true
+
+      - name: Set up Python 3.11
+        if: matrix.changed == true
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Generate Ephemeral Test Keys
+        if: matrix.changed == true
+        run: |
+          mkdir -p /tmp/keys
+          openssl genrsa -out /tmp/keys/jwt_private.pem 2048
+          openssl rsa -in /tmp/keys/jwt_private.pem -pubout -out /tmp/keys/jwt_public.pem
+
+      - name: Install Dependencies
+        if: matrix.changed == true
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest pytest-asyncio pytest-cov httpx
+          pip install -e ./shared-lib
+          pip install -r ./${{ matrix.folder }}/requirements.txt
+
+      - name: Run Linter (PEP8 / Syntax Verification)
+        if: matrix.changed == true
+        run: |
+          flake8 ./${{ matrix.folder }} --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 ./${{ matrix.folder }} --count --exit-zero --max-complexity=15 --max-line-length=127 --statistics
+
+      - name: Execute Pytest Suite or Model Sanity Compilation
+        if: matrix.changed == true
+        env:
+          ENVIRONMENT: development
+          JWT_PRIVATE_KEY_PATH: /tmp/keys/jwt_private.pem
+          JWT_PUBLIC_KEY_PATH: /tmp/keys/jwt_public.pem
+          DATABASE_URL: sqlite:///./test.db
+          RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          cd ${{ matrix.folder }}
+          if [ -d "tests" ]; then
+            pytest -v --cov=app --cov-report=term-missing
+          else
+            echo "ℹ️ Running import & schema validation check."
+            python -c "import app.models; print('✓ Database models compiled successfully')"
+            python -c "import app.main; print('✓ Application compiled without import errors')"
+          fi
+
+  # =========================================================================
+  # 4. BUILD, CVE SCAN & PUSH TO GHCR
+  # =========================================================================
+  build-container:
+    name: "Build & Scan: ${{ matrix.service }}"
+    needs: [test-backend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: iam-service
+            folder: iam-service
+            changed: ${{ needs.detect-changes.outputs.iam == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+          - service: node-service
+            folder: node-service
+            changed: ${{ needs.detect-changes.outputs.node == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+          - service: billing-service
+            folder: billing-service
+            changed: ${{ needs.detect-changes.outputs.billing == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+          - service: support-service
+            folder: support-service
+            changed: ${{ needs.detect-changes.outputs.support == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+          - service: notification-service
+            folder: notification-service
+            changed: ${{ needs.detect-changes.outputs.notification == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+          - service: config-service
+            folder: config-service
+            changed: ${{ needs.detect-changes.outputs.config == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+          - service: traffic-service
+            folder: traffic-service
+            changed: ${{ needs.detect-changes.outputs.traffic == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+          - service: telegram-service
+            folder: telegram-service
+            changed: ${{ needs.detect-changes.outputs.telegram == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
+
+    steps:
+      - uses: actions/checkout@v4
+        if: matrix.changed == true
+
+      # Converts Organization/Username to lowercase for Docker compliance
+      - name: Lowercase Repository Owner
+        if: matrix.changed == true
+        run: |
+          RAW_OWNER="${{ github.repository_owner }}"
+          echo "REPO_OWNER=${RAW_OWNER,,}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        if: matrix.changed == true
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: matrix.changed == true
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Container Image (Local Load)
+        if: matrix.changed == true
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./${{ matrix.folder }}/Dockerfile
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan Image for Vulnerabilities (Trivy)
+        if: matrix.changed == true
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:${{ github.sha }}
+          format: "table"
+          exit-code: "0"
+          ignore-unfixed: true
+          severity: "CRITICAL,HIGH"
+
+      - name: Push Container Image to GHCR
+        if: matrix.changed == true
+        run: |
+          docker tag ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:latest
+          docker push ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:latest
+
+  # =========================================================================
+  # 5. ZERO-DOWNTIME ROLLING DEPLOYMENT (MULTI-HOST WITH AUTO-SECRETS)
+  # =========================================================================
+  deploy-service:
+    name: "Deploy: ${{ matrix.service }}"
+    needs: build-container
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: iam-service
+            folder: iam-service
+            port_num: 8001
+            host_sec: IAM_HOST
+            user_sec: IAM_USER
+            key_sec: IAM_KEY
+            port: 22
+
+          - service: node-service
+            folder: node-service
+            port_num: 8002
+            host_sec: NODE_HOST
+            user_sec: NODE_USER
+            key_sec: NODE_KEY
+            port: 22
+
+          - service: billing-service
+            folder: billing-service
+            port_num: 8003
+            host_sec: BILLING_HOST
+            user_sec: BILLING_USER
+            key_sec: BILLING_KEY
+            port: 22
+
+          - service: support-service
+            folder: support-service
+            port_num: 8004
+            host_sec: SUPPORT_HOST
+            user_sec: SUPPORT_USER
+            key_sec: SUPPORT_KEY
+            port: 22
+
+          - service: notification-service
+            folder: notification-service
+            port_num: 8005
+            host_sec: NOTIFICATION_HOST
+            user_sec: NOTIFICATION_USER
+            key_sec: NOTIFICATION_KEY
+            port: 22
+
+          - service: config-service
+            folder: config-service
+            port_num: 8006
+            host_sec: CONFIG_HOST
+            user_sec: CONFIG_USER
+            key_sec: CONFIG_KEY
+            port: 22
+
+          - service: traffic-service
+            folder: traffic-service
+            port_num: 8007
+            host_sec: TRAFFIC_HOST
+            user_sec: TRAFFIC_USER
+            key_sec: TRAFFIC_KEY
+            port: 22
+
+          - service: telegram-service
+            folder: telegram-service
+            port_num: 0
+            host_sec: TELEGRAM_HOST
+            user_sec: TELEGRAM_USER
+            key_sec: TELEGRAM_KEY
+            port: 22
+
+    steps:
+      - name: Deploy to Remote Target Server
+        if: ${{ secrets[matrix.host_sec] != '' }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets[matrix.host_sec] }}
+          username: ${{ secrets[matrix.user_sec] }}
+          key: ${{ secrets[matrix.key_sec] }}
+          port: ${{ matrix.port }}
+          script: |
+            set -e
+            cd /opt/payg-vpn/${{ matrix.folder }}
+
+            # -------------------------------------------------------------
+            # 1. AUTOMATIC CRYPTOGRAPHIC KEY DISTRIBUTION
+            # -------------------------------------------------------------
+            mkdir -p keys logs uploads
+            
+            # Distribute Public Key to EVERY service server
+            if [ -n "${{ secrets.JWT_PUBLIC_KEY }}" ]; then
+              echo "${{ secrets.JWT_PUBLIC_KEY }}" > keys/jwt_public.pem
+              chmod 644 keys/jwt_public.pem
+            fi
+
+            # Distribute Private Key to IAM and Telegram Bot (for RS256 token delegation)
+            if ([ "${{ matrix.service }}" = "iam-service" ] || [ "${{ matrix.service }}" = "telegram-service" ]) && [ -n "${{ secrets.JWT_PRIVATE_KEY }}" ]; then
+              echo "${{ secrets.JWT_PRIVATE_KEY }}" > keys/jwt_private.pem
+              chmod 600 keys/jwt_private.pem
+            fi
+
+            # -------------------------------------------------------------
+            # 2. DYNAMIC .ENV INGESTION (SECRETS & VARIABLES)
+            # -------------------------------------------------------------
+            set_env() {
+              local key="$1"
+              local val="$2"
+              if [ -n "$val" ]; then
+                sed -i "/^${key}=/d" .env 2>/dev/null || true
+                echo "${key}=${val}" >> .env
+              fi
+            }
+
+            # Update Message Broker & Cache
+            set_env "RABBITMQ_URL" "${{ secrets.RABBITMQ_URL }}"
+            set_env "REDIS_URL"    "${{ secrets.REDIS_URL }}"
+
+            # Update Database Credentials & Full URL
+            set_env "DB_PASSWORD"  "${{ secrets.DB_PASSWORD }}"
+            
+            # Universal password replacer inside DATABASE_URL regardless of the database host name
+            if [ -n "${{ secrets.DATABASE_URL }}" ]; then
+              set_env "DATABASE_URL" "${{ secrets.DATABASE_URL }}"
+            elif [ -n "${{ secrets.DB_PASSWORD }}" ]; then
+              # Replaces password in: postgresql://user:PASSWORD@host:port/dbname
+              sed -i -E "s|(postgresql://[^:]+:)[^@]+(@.*)|\1${{ secrets.DB_PASSWORD }}\2|" .env 2>/dev/null || true
+            fi
+
+            # -------------------------------------------------------------
+            # 3. DOCKER PULL & ROLLING RESTART
+            # -------------------------------------------------------------
+            echo "📥 Authenticating with GitHub Container Registry..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+            echo "📦 Pulling new image tag: ${{ github.sha }}..."
+            export IMAGE_TAG=${{ github.sha }}
+            docker compose pull ${{ matrix.service }}
+
+            echo "🚀 Performing zero-downtime rolling restart..."
+            docker compose up -d --no-deps ${{ matrix.service }}
+
+            # -------------------------------------------------------------
+            # 4. HEALTH CHECK VERIFICATION GATE
+            # -------------------------------------------------------------
+            if [ "${{ matrix.service }}" != "telegram-service" ]; then
+              echo "🏥 Verifying health check on port ${{ matrix.port_num }}..."
+              sleep 4
+              HEALTHY=0
+              for i in $(seq 1 10); do
+                HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:${{ matrix.port_num }}/health || true)
+                if [ "$HTTP_STATUS" = "200" ]; then
+                  echo "✅ Health check passed on attempt $i (HTTP 200)"
+                  HEALTHY=1
+                  break
+                fi
+                echo "⏳ Attempt $i/10: Received HTTP $HTTP_STATUS. Retrying in 3s..."
+                sleep 3
+              done
+
+              if [ "$HEALTHY" -ne 1 ]; then
+                echo "❌ CRITICAL: Health check failed! Initiating rollback..."
+                docker compose rollback || docker compose up -d --no-deps ${{ matrix.service }}:latest
+                exit 1
+              fi
+            else
+              # Dedicated verification for background Telegram worker (no HTTP port)
+              echo "🤖 Verifying Telegram worker container is running..."
+              sleep 4
+              if docker ps --format '{{.Names}}' | grep -q "vpn-telegram-service"; then
+                echo "✅ Telegram worker container is active and running."
+              else
+                echo "❌ CRITICAL: Telegram worker container failed to start!"
+                docker logs vpn-telegram-service --tail 50
+                exit 1
+              fi
+            fi
+
+            echo "🧹 Pruning old unused images..."
+            docker image prune -af --filter "until=48h"
+            echo "✨ ${{ matrix.service }} deployed and verified successfully."

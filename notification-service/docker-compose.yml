@@ -1,0 +1,94 @@
+version: '3.8'
+
+# ==============================================================================
+# LOGGING ROTATION POLICY (Prevents disk overflow on production VPS)
+# ==============================================================================
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+networks:
+  notification_net:
+    driver: bridge
+
+services:
+
+  # ============================================================================
+  # 1. LOCAL DATABASE (POSTGRESQL 17 ALPINE)
+  # Automatically active if COMPOSE_PROFILES=local-db in .env
+  # If connecting to Cloud DB (Neon/RDS), set COMPOSE_PROFILES="" in .env
+  # ============================================================================
+  postgres-notification:
+    image: postgres:17-alpine
+    container_name: vpn-postgres-notification
+    profiles: ["local-db"]
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-super_secret_db_pass}
+      POSTGRES_DB: ${NOTIFICATION_DB_NAME:-notification_db}
+    ports:
+      # Bound strictly to 127.0.0.1 for local host inspection without public exposure
+      - "${DB_HOST_BIND:-127.0.0.1:5436}:5432"
+    volumes:
+      - notification_pgdata:/var/lib/postgresql/data
+    networks:
+      - notification_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin} -d ${NOTIFICATION_DB_NAME:-notification_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+
+  # ============================================================================
+  # 2. NOTIFICATION & SSE MICROSERVICE CORE
+  # Supports both CI/CD pre-built image pulls and local build from source code.
+  # ============================================================================
+  notification-service:
+    # Image pulled by CI/CD pipeline from GHCR
+    image: ${IMAGE_NAME:-ghcr.io/payg-vpn-platform/vpn-notification-service}:${IMAGE_TAG:-latest}
+    # Build fallback used when running: docker compose up --build
+    build:
+      context: ${BUILD_CONTEXT:-..}
+      dockerfile: ${DOCKERFILE_PATH:-./notification-service/Dockerfile}
+    container_name: vpn-notification-service
+    restart: always
+    env_file:
+      - .env
+    ports:
+      # Exposed API Port (default: 8005)
+      - "${NOTIFICATION_PORT:-8005}:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-PAYG_VPN_Bot}
+      - LOG_DIR=/app/logs
+    volumes:
+      # Isolated local directory for rotating logs
+      - ./logs:/app/logs
+      # Asymmetric RSA Public Key (Notification only verifies tokens, never holds private key)
+      - ./keys:/keys:ro
+    depends_on:
+      postgres-notification:
+        condition: service_healthy
+        required: false
+    networks:
+      - notification_net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/health\").read()' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging: *default-logging
+
+volumes:
+  notification_pgdata:
+    name: vpn_notification_pgdata

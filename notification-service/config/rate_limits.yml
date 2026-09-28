@@ -1,0 +1,11 @@
+rate_limits:
+
+  - method: GET
+    path: /notifications/unseen-count
+    requests: 5
+    window_seconds: 60
+
+  - method: GET
+    path: /notifications
+    requests: 5
+    window_seconds: 60

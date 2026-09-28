@@ -1,0 +1,15 @@
+# Cryptographic JWT Authentication (RS256 Asymmetric Engine)
+pyjwt>=2.8.0
+cryptography>=41.0.0
+
+# Core Data Validation & Framework Integrations
+pydantic>=2.0.0
+fastapi>=0.100.0
+python-dotenv>=1.0.0
+
+# Event Bus & Exchange Schemas (RabbitMQ / FastStream)
+faststream[rabbit]>=0.5.0
+
+# Distributed Rate Limiter & Caching
+redis>=5.0.0
+pyyaml>=6.0.0

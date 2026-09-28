@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pydantic
+email-validator
+faststream[rabbit,cli]
+python-dotenv
+pyjwt
+passlib[bcrypt]
+bcrypt==3.2.2
+watchfiles
+httpx
+redis
+pyyaml
+cryptography>=41.0.0

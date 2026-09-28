@@ -1,0 +1,99 @@
+version: '3.8'
+
+# ==============================================================================
+# LOGGING ROTATION POLICY (Prevents disk overflow on production VPS)
+# ==============================================================================
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+networks:
+  node_net:
+    driver: bridge
+
+services:
+
+  # ============================================================================
+  # 1. LOCAL DATABASE (POSTGRESQL 17 ALPINE)
+  # Automatically active if COMPOSE_PROFILES=local-db in .env
+  # If connecting to Cloud DB (Neon/RDS), set COMPOSE_PROFILES="" in .env
+  # ============================================================================
+  postgres-node:
+    image: postgres:17-alpine
+    container_name: vpn-postgres-node
+    profiles: ["local-db"]
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-super_secret_db_pass}
+      POSTGRES_DB: ${NODE_DB_NAME:-node_db}
+    ports:
+      # Bound strictly to 127.0.0.1 for local host inspection without public exposure
+      - "${DB_HOST_BIND:-127.0.0.1:5431}:5432"
+    volumes:
+      - node_pgdata:/var/lib/postgresql/data
+    networks:
+      - node_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin} -d ${NODE_DB_NAME:-node_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+
+  # ============================================================================
+  # 2. NODE FLEET & SUBSCRIPTION MICROSERVICE CORE
+  # Supports both CI/CD pre-built image pulls and local build from source code.
+  # ============================================================================
+  node-service:
+    # Image pulled by CI/CD pipeline from GHCR
+    image: ${IMAGE_NAME:-ghcr.io/payg-vpn-platform/vpn-node-service}:${IMAGE_TAG:-latest}
+    # Build fallback used when running: docker compose up --build
+    build:
+      context: ${BUILD_CONTEXT:-..}
+      dockerfile: ${DOCKERFILE_PATH:-./node-service/Dockerfile}
+    container_name: vpn-node-service
+    restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    ports:
+      # Exposed API Port (default: 8002)
+      - "${NODE_PORT:-8002}:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - SYNC_INTERVAL_MINUTES=${SYNC_INTERVAL_MINUTES:-5}
+      - USE_3XUI_PROXY=${USE_3XUI_PROXY:-false}
+      - XUI_HTTP_PROXY=${XUI_HTTP_PROXY:-}
+      - XUI_REQUEST_TIMEOUT=${XUI_REQUEST_TIMEOUT:-15.0}
+      - LOG_DIR=/app/logs
+    volumes:
+      # Isolated local directory for rotating logs
+      - ./logs:/app/logs
+      # Asymmetric RSA Public Key (Node only verifies tokens, never holds private key)
+      - ./keys:/keys:ro
+    depends_on:
+      postgres-node:
+        condition: service_healthy
+        required: false
+    networks:
+      - node_net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/health\").read()' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging: *default-logging
+
+volumes:
+  node_pgdata:
+    name: vpn_node_pgdata

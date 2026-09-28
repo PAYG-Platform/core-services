@@ -1,0 +1,25 @@
+rate_limits:
+  - method: GET
+    path: /topups/region-credits/sellers
+    requests: 30
+    window_seconds: 60
+
+  - method: GET
+    path: /topups/region-credits/sellers/{seller_id}/regions
+    requests: 30
+    window_seconds: 60
+
+  - method: GET
+    path: /topups/balance
+    requests: 30
+    window_seconds: 60
+
+  - method: POST
+    path: /topups/fiat
+    requests: 10
+    window_seconds: 60
+
+  - method: POST
+    path: /topups/crypto
+    requests: 10
+    window_seconds: 60

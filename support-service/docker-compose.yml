@@ -1,0 +1,96 @@
+version: '3.8'
+
+# ==============================================================================
+# LOGGING ROTATION POLICY (Prevents disk overflow on production VPS)
+# ==============================================================================
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+networks:
+  support_net:
+    driver: bridge
+
+services:
+
+  # ============================================================================
+  # 1. LOCAL DATABASE (POSTGRESQL 17 ALPINE)
+  # Automatically active if COMPOSE_PROFILES=local-db in .env
+  # If connecting to Cloud DB (Neon/RDS), set COMPOSE_PROFILES="" in .env
+  # ============================================================================
+  postgres-support:
+    image: postgres:17-alpine
+    container_name: vpn-postgres-support
+    profiles: ["local-db"]
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-super_secret_db_pass}
+      POSTGRES_DB: ${SUPPORT_DB_NAME:-support_db}
+    ports:
+      # Bound strictly to 127.0.0.1 for local host inspection without public exposure
+      - "${DB_HOST_BIND:-127.0.0.1:5435}:5432"
+    volumes:
+      - support_pgdata:/var/lib/postgresql/data
+    networks:
+      - support_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-admin} -d ${SUPPORT_DB_NAME:-support_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+
+  # ============================================================================
+  # 2. SUPPORT & TICKETING MICROSERVICE CORE
+  # Supports both CI/CD pre-built image pulls and local build from source code.
+  # ============================================================================
+  support-service:
+    # Image pulled by CI/CD pipeline from GHCR
+    image: ${IMAGE_NAME:-ghcr.io/payg-vpn-platform/vpn-support-service}:${IMAGE_TAG:-latest}
+    # Build fallback used when running: docker compose up --build
+    build:
+      context: ${BUILD_CONTEXT:-..}
+      dockerfile: ${DOCKERFILE_PATH:-./support-service/Dockerfile}
+    container_name: vpn-support-service
+    restart: always
+    env_file:
+      - .env
+    ports:
+      # Exposed API Port (default: 8004)
+      - "${SUPPORT_PORT:-8004}:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - UPLOAD_DIR=/app/uploads
+      - LOG_DIR=/app/logs
+    volumes:
+      # Isolated local storage for ticket media screenshots and video recordings
+      - ./uploads:/app/uploads
+      # Isolated local directory for rotating logs
+      - ./logs:/app/logs
+      # Asymmetric RSA Public Key (Support only verifies tokens, never holds private key)
+      - ./keys:/keys:ro
+    depends_on:
+      postgres-support:
+        condition: service_healthy
+        required: false
+    networks:
+      - support_net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/health\").read()' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging: *default-logging
+
+volumes:
+  support_pgdata:
+    name: vpn_support_pgdata

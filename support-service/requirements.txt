@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+python-multipart
+pydantic
+email-validator
+faststream[rabbit]
+python-dotenv
+pyjwt
+watchfiles
+httpx
+redis
+pyyaml
+cryptography>=41.0.0

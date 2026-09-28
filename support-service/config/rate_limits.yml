@@ -1,0 +1,26 @@
+rate_limits:
+
+  - method: GET
+    path: /tickets
+    requests: 10
+    window_seconds: 60
+
+  - method: GET
+    path: /tickets/poll
+    requests: 10
+    window_seconds: 60
+
+  - method: GET
+    path: /tickets/{ticket_id}
+    requests: 30
+    window_seconds: 60
+
+  - method: POST
+    path: /tickets
+    requests: 10
+    window_seconds: 60
+
+  - method: POST
+    path: /tickets/{ticket_id}/messages
+    requests: 20
+    window_seconds: 60

@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+pydantic
+pyjwt
+sqlalchemy
+psycopg2-binary
+httpx
+faststream[rabbit,cli]
+apscheduler
+python-dotenv
+watchfiles
+redis
+pyyaml
+cryptography>=41.0.0

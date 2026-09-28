@@ -1,0 +1,34 @@
+# Database and state data (prevents cache invalidation)
+data/
+data/**
+*.db
+*.sqlite
+
+# Python cache & virtual environments
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.venv/
+venv/
+ENV/
+env/
+
+# Node modules & frontend builds
+**/node_modules/
+**/dist/
+**/build/
+
+# Git & IDE files
+.git/
+.gitignore
+.idea/
+.vscode/
+
+# Logs & temporary files
+*.log
+logs/
+**/logs/
+.DS_Store
+**/*.pem
+

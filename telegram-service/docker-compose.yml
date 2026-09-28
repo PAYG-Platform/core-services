@@ -1,0 +1,60 @@
+version: '3.8'
+
+# ==============================================================================
+# LOGGING ROTATION POLICY (Prevents disk overflow on production VPS)
+# ==============================================================================
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+networks:
+  telegram_net:
+    driver: bridge
+
+services:
+
+  # ============================================================================
+  # TELEGRAM BOT MTPROTO WORKER CORE
+  # Note: No dedicated PostgreSQL container is needed.
+  # State is stored in Redis; events are consumed from RabbitMQ.
+  # Supports both CI/CD pre-built image pulls and local build from source code.
+  # ============================================================================
+  telegram-service:
+    # Image pulled by CI/CD pipeline from GHCR
+    image: ${IMAGE_NAME:-ghcr.io/payg-vpn-platform/vpn-telegram-service}:${IMAGE_TAG:-latest}
+    # Build fallback used when running: docker compose up --build
+    build:
+      context: ${BUILD_CONTEXT:-..}
+      dockerfile: ${DOCKERFILE_PATH:-./telegram-service/Dockerfile}
+    container_name: vpn-telegram-service
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-PAYG_VPN_Bot}
+      - API_GATEWAY_URL=${API_GATEWAY_URL}
+      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+      - IAM_SERVICE_URL=${IAM_SERVICE_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - JWT_PRIVATE_KEY_PATH=/keys/jwt_private.pem
+      - LOG_DIR=/app/logs
+      - PROXY_HOST=${PROXY_HOST:-}
+      - PROXY_PORT=${PROXY_PORT:-}
+      - HTTP_PROXY=${HTTP_PROXY:-}
+      - HTTPS_PROXY=${HTTPS_PROXY:-}
+    volumes:
+      # Isolated local directory for rotating logs
+      - ./logs:/app/logs
+      # Asymmetric RSA Keys (Mounts directory safely)
+      - ./keys:/keys:ro
+    networks:
+      - telegram_net
+    logging: *default-logging

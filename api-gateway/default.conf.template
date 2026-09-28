@@ -1,0 +1,284 @@
+# =========================================================================
+# DYNAMIC MICROSERVICE UPSTREAMS
+# In All-in-One / Dev: Resolves via Docker network (e.g. iam-service:8000)
+# In 1-Service-Per-Server: Resolves via WireGuard/VPC IPs (e.g. 10.10.0.31:8001)
+# =========================================================================
+upstream iam_backend {
+    server ${IAM_HOST};
+}
+
+upstream node_backend {
+    server ${NODE_HOST};
+}
+
+upstream billing_backend {
+    server ${BILLING_HOST};
+}
+
+upstream support_backend {
+    server ${SUPPORT_HOST};
+}
+
+upstream notification_backend {
+    server ${NOTIFICATION_HOST};
+}
+
+upstream config_backend {
+    server ${CONFIG_HOST};
+}
+
+upstream traffic_backend {
+    server ${TRAFFIC_HOST};
+}
+
+server {
+    listen 80;
+    server_name localhost;
+
+    # Dedicated Isolated Logging
+    access_log /var/log/nginx/access.log combined;
+    error_log /var/log/nginx/error.log warn;
+
+    # Maximum upload file size (matching receipts and ticket attachments)
+    client_max_body_size 25M;
+
+    # Global Proxy Timeout and Connection Defaults
+    proxy_http_version 1.1;
+    proxy_read_timeout 120s;
+    proxy_connect_timeout 90s;
+    proxy_send_timeout 120s;
+
+    # Standard Proxy Headers for Upstream Microservices
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # WebSocket & Long-Polling Support
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+
+    # Preserve Set-Cookie Header for HttpOnly JWT Authentication
+    proxy_pass_header Set-Cookie;
+
+    # =========================================================================
+    # CENTRALIZED API GATEWAY CORS HANDLING
+    # =========================================================================
+    # Dynamically match requesting origin (localhost:3000, 127.0.0.1:3000, etc.)
+    set $cors_origin "";
+    if ($http_origin ~* "^http://(localhost|127\.0\.0\.1)(:[0-9]+)?$") {
+        set $cors_origin $http_origin;
+    }
+
+    # Attach CORS Headers to all upstream responses
+    add_header 'Access-Control-Allow-Origin' $cors_origin always;
+    add_header 'Access-Control-Allow-Credentials' 'true' always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+    add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept, Origin, X-Requested-With, Cookie' always;
+
+    # =========================================================================
+    # V2RAY SUBSCRIPTION SHORT ROUTE
+    # =========================================================================
+    location /sub/ {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept, Origin, X-Requested-With, Cookie' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+        proxy_pass http://node_backend;
+    }
+
+    # =========================================================================
+    # STATIC ATTACHMENTS & UPLOADS ROUTES (SEGMENTED)
+    # =========================================================================
+    # 1. Billing Service Payment Receipts
+    location /uploads/receipts/ {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept, Origin, X-Requested-With, Cookie' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+        proxy_pass http://billing_backend;
+    }
+
+    # 2. Support Service Ticket Media & Diagnostic Attachments
+    location /uploads/tickets/ {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept, Origin, X-Requested-With, Cookie' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+        proxy_pass http://support_backend;
+    }
+
+    # 3. Fallback for legacy uploads
+    location /uploads/ {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept, Origin, X-Requested-With, Cookie' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+        proxy_pass http://support_backend;
+    }
+
+    # =========================================================================
+    # MICROSERVICE API ROUTING (Using Dynamic Upstreams)
+    # =========================================================================
+
+    # 1. IAM Service (Auth, Users, Connections)
+    location /api/iam {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept, Origin, X-Requested-With, Cookie' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+        rewrite ^/api/iam/?(.*)$ /$1 break;
+        proxy_pass http://iam_backend;
+        proxy_redirect off;
+    }
+
+    # 2. Node Service (Servers, Locations, Subscriptions)
+    location /api/node {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept, Origin, X-Requested-With, Cookie' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+        rewrite ^/api/node/?(.*)$ /$1 break;
+        proxy_pass http://node_backend;
+        proxy_redirect off;
+    }
+
+    # 3. Billing Service (Top-ups, Refunds, Ledger, Financial Analytics)
+    location /api/billing {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept, Origin, X-Requested-With, Cookie' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+        rewrite ^/api/billing/?(.*)$ /$1 break;
+        proxy_pass http://billing_backend;
+        proxy_redirect off;
+    }
+
+    # 4. Support Service (Tickets & Helpdesk Messages)
+    location /api/support {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept, Origin, X-Requested-With, Cookie' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+        rewrite ^/api/support/?(.*)$ /$1 break;
+        proxy_pass http://support_backend;
+        proxy_redirect off;
+    }
+
+    # 5. Notification Service (User Inbox, Preferences, SSE Stream)
+    location /api/notifications {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept, Origin, X-Requested-With, Cookie' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+
+        # SSE (Server-Sent Events) Specific Config
+        proxy_set_header Connection '';
+        proxy_http_version 1.1;
+        chunked_transfer_encoding off;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 12h;
+
+        rewrite ^/api/notifications/(.*)$ /notifications/$1 break;
+        rewrite ^/api/notifications$ /notifications break;
+        proxy_pass http://notification_backend;
+        proxy_redirect off;
+    }
+
+    # 6. Config Service (Platform Branding & Maintenance Mode)
+    location /api/config {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept, Origin, X-Requested-With, Cookie' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+        rewrite ^/api/config/?(.*)$ /config/$1 break;
+        proxy_pass http://config_backend;
+        proxy_redirect off;
+    }
+
+    # 7. Traffic & Metering Service (Bandwidth Telemetry, Daily Usage, Trends)
+    location /api/traffic {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept, Origin, X-Requested-With, Cookie' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+        rewrite ^/api/traffic/?(.*)$ /$1 break;
+        proxy_pass http://traffic_backend;
+        proxy_redirect off;
+    }
+
+    # =========================================================================
+    # HEALTH CHECK
+    # =========================================================================
+    location /health {
+        default_type application/json;
+        return 200 '{"status": "healthy", "gateway": "online"}';
+    }
+}

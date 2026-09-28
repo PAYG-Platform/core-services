@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+httpx
+pydantic
+faststream[rabbit]
+python-dotenv
+watchfiles
+redis
+pyyaml
+cryptography>=41.0.0

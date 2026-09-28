@@ -1,0 +1,825 @@
+version: '3.8'
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+networks:
+  vpn_net:
+    name: vpn_net
+    driver: bridge
+
+services:
+
+  # =========================================================================
+  # SHARED REDIS
+  # =========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: vpn-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - vpn_net
+
+  # =========================================================================
+  # 1. DEVELOPMENT PROFILE SERVICES
+  # =========================================================================
+
+  postgres-iam-dev:
+    profiles: ["development"]
+    image: postgres:17-alpine
+    container_name: vpn-postgres-iam-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-supersecret}
+      POSTGRES_DB: ${IAM_DB_NAME:-iam_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/dev/postgres-iam:/var/lib/postgresql/data
+    networks:
+      - vpn_net
+
+  postgres-node-dev:
+    profiles: ["development"]
+    image: postgres:17-alpine
+    container_name: vpn-postgres-node-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-supersecret}
+      POSTGRES_DB: ${NODE_DB_NAME:-node_db}
+    ports:
+      - "5431:5432"
+    volumes:
+      - ./data/dev/postgres-node:/var/lib/postgresql/data
+    networks:
+      - vpn_net
+
+  postgres-billing-dev:
+    profiles: ["development"]
+    image: postgres:17-alpine
+    container_name: vpn-postgres-billing-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-supersecret}
+      POSTGRES_DB: ${BILLING_DB_NAME:-billing_db}
+    ports:
+      - "5434:5432"
+    volumes:
+      - ./data/dev/postgres-billing:/var/lib/postgresql/data
+    networks:
+      - vpn_net
+
+  postgres-support-dev:
+    profiles: ["development"]
+    image: postgres:17-alpine
+    container_name: vpn-postgres-support-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-supersecret}
+      POSTGRES_DB: ${SUPPORT_DB_NAME:-support_db}
+    ports:
+      - "5435:5432"
+    volumes:
+      - ./data/dev/postgres-support:/var/lib/postgresql/data
+    networks:
+      - vpn_net
+
+  postgres-notification-dev:
+    profiles: ["development"]
+    image: postgres:17-alpine
+    container_name: vpn-postgres-notification-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-supersecret}
+      POSTGRES_DB: ${NOTIFICATION_DB_NAME:-notification_db}
+    ports:
+      - "5436:5432"
+    volumes:
+      - ./data/dev/postgres-notification:/var/lib/postgresql/data
+    networks:
+      - vpn_net
+
+  postgres-config-dev:
+    profiles: ["development"]
+    image: postgres:17-alpine
+    container_name: vpn-postgres-config-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-supersecret}
+      POSTGRES_DB: ${CONFIG_DB_NAME:-config_db}
+    ports:
+      - "5437:5432"
+    volumes:
+      - ./data/dev/postgres-config:/var/lib/postgresql/data
+    networks:
+      - vpn_net
+
+  rabbitmq-dev:
+    profiles: ["development"]
+    image: rabbitmq:3-management-alpine
+    container_name: vpn-rabbitmq-dev
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RMQ_PASSWORD:-supersecret}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - ./data/dev/rabbitmq:/var/lib/rabbitmq
+    networks:
+      - vpn_net
+
+  api-gateway-dev:
+    profiles: ["development"]
+    build:
+      context: ./api-gateway
+    container_name: vpn-api-gateway-dev
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    environment:
+      - IAM_HOST=${IAM_HOST:-iam-service:8000}
+      - NODE_HOST=${NODE_HOST:-node-service:8000}
+      - BILLING_HOST=${BILLING_HOST:-billing-service:8000}
+      - SUPPORT_HOST=${SUPPORT_HOST:-support-service:8000}
+      - NOTIFICATION_HOST=${NOTIFICATION_HOST:-notification-service:8000}
+      - CONFIG_HOST=${CONFIG_HOST:-config-service:8000}
+      - TRAFFIC_HOST=${TRAFFIC_HOST:-traffic-service:8000}
+    volumes:
+      - ./api-gateway/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./logs/api-gateway:/var/log/nginx
+    logging: *default-logging
+    depends_on:
+      - iam-service-dev
+      - node-service-dev
+      - billing-service-dev
+      - support-service-dev
+      - notification-service-dev
+      - config-service-dev
+      - traffic-service-dev
+    networks:
+      - vpn_net
+
+  iam-service-dev:
+    profiles: ["development"]
+    build:
+      context: .
+      dockerfile: ./iam-service/Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    container_name: vpn-iam-service-dev
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-supersecret}@postgres-iam-dev:5432/${IAM_DB_NAME:-iam_db}
+      - RABBITMQ_URL=amqp://${RMQ_USER:-admin}:${RMQ_PASSWORD:-supersecret}@rabbitmq-dev:5672/
+      - JWT_PRIVATE_KEY_PATH=/app/keys/jwt_private.pem
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - COOKIE_SECURE=False
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./iam-service/app:/app/app
+      - ./logs/iam-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - postgres-iam-dev
+      - rabbitmq-dev
+    networks:
+      vpn_net:
+        aliases:
+          - iam-service
+
+  node-service-dev:
+    profiles: ["development"]
+    build:
+      context: .
+      dockerfile: ./node-service/Dockerfile
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    container_name: vpn-node-service-dev
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-supersecret}@postgres-node-dev:5432/${NODE_DB_NAME:-node_db}
+      - RABBITMQ_URL=amqp://${RMQ_USER:-admin}:${RMQ_PASSWORD:-supersecret}@rabbitmq-dev:5672/
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - SYNC_INTERVAL_MINUTES=${SYNC_INTERVAL_MINUTES:-5}
+      - USE_3XUI_PROXY=${USE_3XUI_PROXY:-false}
+      - XUI_HTTP_PROXY=${XUI_HTTP_PROXY:-http://host.docker.internal:10808}
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./node-service/app:/app/app
+      - ./logs/node-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - postgres-node-dev
+      - rabbitmq-dev
+    networks:
+      vpn_net:
+        aliases:
+          - node-service
+
+  billing-service-dev:
+    profiles: ["development"]
+    build:
+      context: .
+      dockerfile: ./billing-service/Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    container_name: vpn-billing-service-dev
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-supersecret}@postgres-billing-dev:5432/${BILLING_DB_NAME:-billing_db}
+      - RABBITMQ_URL=amqp://${RMQ_USER:-admin}:${RMQ_PASSWORD:-supersecret}@rabbitmq-dev:5672/
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./billing-service/app:/app/app
+      - ./logs/billing-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./data/dev/uploads:/app/uploads
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - postgres-billing-dev
+      - rabbitmq-dev
+      - redis
+    networks:
+      vpn_net:
+        aliases:
+          - billing-service
+
+  support-service-dev:
+    profiles: ["development"]
+    build:
+      context: .
+      dockerfile: ./support-service/Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    container_name: vpn-support-service-dev
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-supersecret}@postgres-support-dev:5432/${SUPPORT_DB_NAME:-support_db}
+      - RABBITMQ_URL=amqp://${RMQ_USER:-admin}:${RMQ_PASSWORD:-supersecret}@rabbitmq-dev:5672/
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    ports:
+      - "8004:8000"
+    volumes:
+      - ./support-service/app:/app/app
+      - ./logs/support-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./data/dev/uploads:/app/uploads
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - postgres-support-dev
+      - rabbitmq-dev
+    networks:
+      vpn_net:
+        aliases:
+          - support-service
+
+  notification-service-dev:
+    profiles: ["development"]
+    build:
+      context: .
+      dockerfile: ./notification-service/Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    container_name: vpn-notification-service-dev
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-supersecret}@postgres-notification-dev:5432/${NOTIFICATION_DB_NAME:-notification_db}
+      - RABBITMQ_URL=amqp://${RMQ_USER:-admin}:${RMQ_PASSWORD:-supersecret}@rabbitmq-dev:5672/
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-PAYG_VPN_Bot}
+    ports:
+      - "8005:8000"
+    volumes:
+      - ./notification-service/app:/app/app
+      - ./logs/notification-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - postgres-notification-dev
+      - rabbitmq-dev
+    networks:
+      vpn_net:
+        aliases:
+          - notification-service
+
+  config-service-dev:
+    profiles: ["development"]
+    build:
+      context: .
+      dockerfile: ./config-service/Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    container_name: vpn-config-service-dev
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-supersecret}@postgres-config-dev:5432/${CONFIG_DB_NAME:-config_db}
+      - RABBITMQ_URL=amqp://${RMQ_USER:-admin}:${RMQ_PASSWORD:-supersecret}@rabbitmq-dev:5672/
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    ports:
+      - "8006:8000"
+    volumes:
+      - ./config-service/app:/app/app
+      - ./logs/config-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - postgres-config-dev
+      - rabbitmq-dev
+    networks:
+      vpn_net:
+        aliases:
+          - config-service
+
+  postgres-traffic-dev:
+    profiles: ["development"]
+    image: postgres:17-alpine
+    container_name: vpn-postgres-traffic-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-supersecret}
+      POSTGRES_DB: ${TRAFFIC_DB_NAME:-traffic_db}
+    ports:
+      - "5438:5432"
+    volumes:
+      - ./data/dev/postgres-traffic:/var/lib/postgresql/data
+    networks:
+      - vpn_net
+
+  traffic-service-dev:
+    profiles: ["development"]
+    build:
+      context: .
+      dockerfile: ./traffic-service/Dockerfile
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    container_name: vpn-traffic-service-dev
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-admin}:${DB_PASSWORD:-supersecret}@postgres-traffic-dev:5432/${TRAFFIC_DB_NAME:-traffic_db}
+      - RABBITMQ_URL=amqp://${RMQ_USER:-admin}:${RMQ_PASSWORD:-supersecret}@rabbitmq-dev:5672/
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - SYNC_INTERVAL_MINUTES=${SYNC_INTERVAL_MINUTES:-5}
+      - USE_3XUI_PROXY=${USE_3XUI_PROXY:-false}
+      - XUI_HTTP_PROXY=${XUI_HTTP_PROXY:-http://host.docker.internal:10808}
+    volumes:
+      - ./traffic-service/app:/app/app
+      - ./logs/traffic-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - postgres-traffic-dev
+      - rabbitmq-dev
+    networks:
+      vpn_net:
+        aliases:
+          - traffic-service
+
+  telegram-service-dev:
+    profiles: ["development"]
+    build:
+      context: .
+      dockerfile: ./telegram-service/Dockerfile
+    container_name: vpn-telegram-service-dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - API_GATEWAY_URL=http://api-gateway-dev:80
+      - NOTIFICATION_SERVICE_URL=http://notification-service-dev:8000
+      - IAM_SERVICE_URL=http://iam-service-dev:8000
+      - RABBITMQ_URL=amqp://${RMQ_USER:-admin}:${RMQ_PASSWORD:-supersecret}@rabbitmq-dev:5672/
+      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    volumes:
+      - ./telegram-service/app:/app/app
+      - ./logs/telegram-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - rabbitmq-dev
+      - redis
+      - api-gateway-dev
+    networks:
+      - vpn_net
+
+  # =========================================================================
+  # 2. PRODUCTION PROFILE SERVICES (Static, Independent, Container-First)
+  # =========================================================================
+
+  postgres-iam-prod:
+    profiles: ["production"]
+    image: postgres:17-alpine
+    container_name: vpn-postgres-iam-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${IAM_DB_NAME}
+    volumes:
+      - ./data/prod/postgres-iam:/var/lib/postgresql/data
+    networks:
+      - vpn_net
+
+  postgres-node-prod:
+    profiles: ["production"]
+    image: postgres:17-alpine
+    container_name: vpn-postgres-node-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${NODE_DB_NAME}
+    volumes:
+      - ./data/prod/postgres-node:/var/lib/postgresql/data
+    networks:
+      - vpn_net
+
+  postgres-billing-prod:
+    profiles: ["production"]
+    image: postgres:17-alpine
+    container_name: vpn-postgres-billing-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${BILLING_DB_NAME}
+    volumes:
+      - ./data/prod/postgres-billing:/var/lib/postgresql/data
+    networks:
+      - vpn_net
+
+  postgres-support-prod:
+    profiles: ["production"]
+    image: postgres:17-alpine
+    container_name: vpn-postgres-support-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${SUPPORT_DB_NAME}
+    volumes:
+      - ./data/prod/postgres-support:/var/lib/postgresql/data
+    networks:
+      - vpn_net
+
+  postgres-notification-prod:
+    profiles: ["production"]
+    image: postgres:17-alpine
+    container_name: vpn-postgres-notification-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${NOTIFICATION_DB_NAME}
+    volumes:
+      - ./data/prod/postgres-notification:/var/lib/postgresql/data
+    networks:
+      - vpn_net
+
+  postgres-config-prod:
+    profiles: ["production"]
+    image: postgres:17-alpine
+    container_name: vpn-postgres-config-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${CONFIG_DB_NAME}
+    volumes:
+      - ./data/prod/postgres-config:/var/lib/postgresql/data
+    networks:
+      - vpn_net
+
+  rabbitmq-prod:
+    profiles: ["production"]
+    image: rabbitmq:3-management-alpine
+    container_name: vpn-rabbitmq-prod
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RMQ_PASSWORD}
+    ports:
+      - "5672:5672"
+    volumes:
+      - ./data/prod/rabbitmq:/var/lib/rabbitmq
+    networks:
+      - vpn_net
+
+  api-gateway-prod:
+    profiles: ["production"]
+    build:
+      context: ./api-gateway
+    container_name: vpn-api-gateway-prod
+    restart: always
+    ports:
+      - "127.0.0.1:8000:80"
+    volumes:
+      - ./api-gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./logs/api-gateway:/var/log/nginx
+    logging: *default-logging
+    depends_on:
+      - iam-service-prod
+      - node-service-prod
+      - billing-service-prod
+      - support-service-prod
+      - notification-service-prod
+      - config-service-prod
+      - traffic-service-prod
+    networks:
+      - vpn_net
+
+  iam-service-prod:
+    profiles: ["production"]
+    build:
+      context: .
+      dockerfile: ./iam-service/Dockerfile
+    container_name: vpn-iam-service-prod
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-iam-prod:5432/${IAM_DB_NAME}
+      - RABBITMQ_URL=amqp://${RMQ_USER}:${RMQ_PASSWORD}@rabbitmq-prod:5672/
+      - JWT_PRIVATE_KEY_PATH=/app/keys/jwt_private.pem
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - COOKIE_SECURE=${COOKIE_SECURE:-True}
+    volumes:
+      - ./iam-service/app:/app/app
+      - ./logs/iam-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - postgres-iam-prod
+      - rabbitmq-prod
+    networks:
+      vpn_net:
+        aliases:
+          - iam-service
+
+  node-service-prod:
+    profiles: ["production"]
+    build:
+      context: .
+      dockerfile: ./node-service/Dockerfile
+    container_name: vpn-node-service-prod
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-node-prod:5432/${NODE_DB_NAME}
+      - RABBITMQ_URL=amqp://${RMQ_USER}:${RMQ_PASSWORD}@rabbitmq-prod:5672/
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - SYNC_INTERVAL_MINUTES=${SYNC_INTERVAL_MINUTES:-5}
+      - USE_3XUI_PROXY=${USE_3XUI_PROXY:-false}
+      - XUI_HTTP_PROXY=${XUI_HTTP_PROXY:-http://host.docker.internal:10808}
+    volumes:
+      - ./node-service/app:/app/app
+      - ./logs/node-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - postgres-node-prod
+      - rabbitmq-prod
+    networks:
+      vpn_net:
+        aliases:
+          - node-service
+
+  billing-service-prod:
+    profiles: ["production"]
+    build:
+      context: .
+      dockerfile: ./billing-service/Dockerfile
+    container_name: vpn-billing-service-prod
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-billing-prod:5432/${BILLING_DB_NAME}
+      - RABBITMQ_URL=amqp://${RMQ_USER}:${RMQ_PASSWORD}@rabbitmq-prod:5672/
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+    volumes:
+      - ./billing-service/app:/app/app
+      - ./logs/billing-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./data/prod/uploads:/app/uploads
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - postgres-billing-prod
+      - rabbitmq-prod
+      - redis
+    networks:
+      vpn_net:
+        aliases:
+          - billing-service
+
+  support-service-prod:
+    profiles: ["production"]
+    build:
+      context: .
+      dockerfile: ./support-service/Dockerfile
+    container_name: vpn-support-service-prod
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-support-prod:5432/${SUPPORT_DB_NAME}
+      - RABBITMQ_URL=amqp://${RMQ_USER}:${RMQ_PASSWORD}@rabbitmq-prod:5672/
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+    volumes:
+      - ./support-service/app:/app/app
+      - ./logs/support-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./data/prod/uploads:/app/uploads
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - postgres-support-prod
+      - rabbitmq-prod
+    networks:
+      vpn_net:
+        aliases:
+          - support-service
+
+  notification-service-prod:
+    profiles: ["production"]
+    build:
+      context: .
+      dockerfile: ./notification-service/Dockerfile
+    container_name: vpn-notification-service-prod
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-notification-prod:5432/${NOTIFICATION_DB_NAME}
+      - RABBITMQ_URL=amqp://${RMQ_USER}:${RMQ_PASSWORD}@rabbitmq-prod:5672/
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-PAYG_VPN_Bot}
+    volumes:
+      - ./notification-service/app:/app/app
+      - ./logs/notification-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - postgres-notification-prod
+      - rabbitmq-prod
+    networks:
+      vpn_net:
+        aliases:
+          - notification-service
+
+  config-service-prod:
+    profiles: ["production"]
+    build:
+      context: .
+      dockerfile: ./config-service/Dockerfile
+    container_name: vpn-config-service-prod
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-config-prod:5432/${CONFIG_DB_NAME}
+      - RABBITMQ_URL=amqp://${RMQ_USER}:${RMQ_PASSWORD}@rabbitmq-prod:5672/
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+    volumes:
+      - ./config-service/app:/app/app
+      - ./logs/config-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - postgres-config-prod
+      - rabbitmq-prod
+    networks:
+      vpn_net:
+        aliases:
+          - config-service
+
+  postgres-traffic-prod:
+    profiles: ["production"]
+    image: postgres:17-alpine
+    container_name: vpn-postgres-traffic-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${TRAFFIC_DB_NAME}
+    volumes:
+      - ./data/prod/postgres-traffic:/var/lib/postgresql/data
+    networks:
+      - vpn_net
+
+  traffic-service-prod:
+    profiles: ["production"]
+    build:
+      context: .
+      dockerfile: ./traffic-service/Dockerfile
+    container_name: vpn-traffic-service-prod
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-traffic-prod:5432/${TRAFFIC_DB_NAME}
+      - RABBITMQ_URL=amqp://${RMQ_USER}:${RMQ_PASSWORD}@rabbitmq-prod:5672/
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - SYNC_INTERVAL_MINUTES=${SYNC_INTERVAL_MINUTES:-5}
+      - USE_3XUI_PROXY=${USE_3XUI_PROXY:-false}
+      - XUI_HTTP_PROXY=${XUI_HTTP_PROXY:-http://host.docker.internal:10808}
+    volumes:
+      - ./traffic-service/app:/app/app
+      - ./logs/traffic-service:/app/logs
+      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./keys:/app/keys:ro
+    logging: *default-logging
+    depends_on:
+      - postgres-traffic-prod
+      - rabbitmq-prod
+    networks:
+      vpn_net:
+        aliases:
+          - traffic-service
+
+  telegram-service-prod:
+    profiles: ["production"]
+    build:
+      context: .
+      dockerfile: ./telegram-service/Dockerfile
+    container_name: vpn-telegram-service-prod
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - API_GATEWAY_URL=http://api-gateway-prod:80
+      - NOTIFICATION_SERVICE_URL=http://notification-service-prod:8000
+      - IAM_SERVICE_URL=http://iam-service-prod:8000
+      - RABBITMQ_URL=amqp://${RMQ_USER}:${RMQ_PASSWORD}@rabbitmq-prod:5672/
+      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+      - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
+      - ENVIRONMENT=production
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-PAYG_VPN_Bot}
+      - LOG_DIR=/app/logs
+    volumes:
+      - ./keys:/app/keys:ro
+      - ./logs/telegram-service:/app/logs
+      - ./data/prod/telegram:/app/session
+    logging: *default-logging
+    depends_on:
+      - rabbitmq-prod
+      - redis
+      - api-gateway-prod
+      - notification-service-prod
+      - iam-service-prod
+    networks:
+      vpn_net:
+        aliases:
+          - telegram-service

@@ -5,19 +5,18 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch: # Allows manual deployment trigger from GitHub Actions UI
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
 
-# Required for pushing images to GitHub Container Registry in Organizations
 permissions:
   contents: read
   packages: write
 
 jobs:
   # =========================================================================
-  # 1. CHANGE DETECTION (Monorepo Selective Pipeline)
+  # 1. CHANGE DETECTION
   # =========================================================================
   detect-changes:
     name: "Detect Modified Services"
@@ -79,7 +78,7 @@ jobs:
         continue-on-error: true
 
   # =========================================================================
-  # 3. AUTOMATED TEST & COMPILATION SUITE (PARALLEL MATRIX)
+  # 3. TEST & COMPILATION SUITE
   # =========================================================================
   test-backend:
     name: "Test: ${{ matrix.service }}"
@@ -115,25 +114,26 @@ jobs:
             changed: ${{ needs.detect-changes.outputs.telegram == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
 
     steps:
-      - uses: actions/checkout@v4
-        if: matrix.changed == true
+      - name: Checkout Code
+        if: matrix.changed == 'true'
+        uses: actions/checkout@v4
 
       - name: Set up Python 3.11
-        if: matrix.changed == true
+        if: matrix.changed == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
 
       - name: Generate Ephemeral Test Keys
-        if: matrix.changed == true
+        if: matrix.changed == 'true'
         run: |
           mkdir -p /tmp/keys
           openssl genrsa -out /tmp/keys/jwt_private.pem 2048
           openssl rsa -in /tmp/keys/jwt_private.pem -pubout -out /tmp/keys/jwt_public.pem
 
       - name: Install Dependencies
-        if: matrix.changed == true
+        if: matrix.changed == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install flake8 pytest pytest-asyncio pytest-cov httpx
@@ -141,13 +141,13 @@ jobs:
           pip install -r ./${{ matrix.folder }}/requirements.txt
 
       - name: Run Linter (PEP8 / Syntax Verification)
-        if: matrix.changed == true
+        if: matrix.changed == 'true'
         run: |
           flake8 ./${{ matrix.folder }} --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 ./${{ matrix.folder }} --count --exit-zero --max-complexity=15 --max-line-length=127 --statistics
 
       - name: Execute Pytest Suite or Model Sanity Compilation
-        if: matrix.changed == true
+        if: matrix.changed == 'true'
         env:
           ENVIRONMENT: development
           JWT_PRIVATE_KEY_PATH: /tmp/keys/jwt_private.pem
@@ -155,6 +155,8 @@ jobs:
           DATABASE_URL: sqlite:///./test.db
           RABBITMQ_URL: amqp://guest:guest@localhost:5672/
           REDIS_URL: redis://localhost:6379/0
+          UPLOAD_DIR: ./uploads
+          LOG_DIR: ./logs
         run: |
           cd ${{ matrix.folder }}
           if [ -d "tests" ]; then
@@ -170,7 +172,7 @@ jobs:
   # =========================================================================
   build-container:
     name: "Build & Scan: ${{ matrix.service }}"
-    needs: [test-backend]
+    needs: [test-backend, detect-changes]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     strategy:
@@ -203,22 +205,22 @@ jobs:
             changed: ${{ needs.detect-changes.outputs.telegram == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
 
     steps:
-      - uses: actions/checkout@v4
-        if: matrix.changed == true
+      - name: Checkout Code
+        if: matrix.changed == 'true'
+        uses: actions/checkout@v4
 
-      # Converts Organization/Username to lowercase for Docker compliance
       - name: Lowercase Repository Owner
-        if: matrix.changed == true
+        if: matrix.changed == 'true'
         run: |
           RAW_OWNER="${{ github.repository_owner }}"
           echo "REPO_OWNER=${RAW_OWNER,,}" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
-        if: matrix.changed == true
+        if: matrix.changed == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
-        if: matrix.changed == true
+        if: matrix.changed == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -226,7 +228,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Container Image (Local Load)
-        if: matrix.changed == true
+        if: matrix.changed == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -237,7 +239,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Scan Image for Vulnerabilities (Trivy)
-        if: matrix.changed == true
+        if: matrix.changed == 'true'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:${{ github.sha }}
@@ -247,18 +249,18 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Push Container Image to GHCR
-        if: matrix.changed == true
+        if: matrix.changed == 'true'
         run: |
           docker tag ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:latest
           docker push ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:${{ github.sha }}
           docker push ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:latest
 
   # =========================================================================
-  # 5. ZERO-DOWNTIME ROLLING DEPLOYMENT (MULTI-HOST WITH AUTO-SECRETS)
+  # 5. ZERO-DOWNTIME ROLLING DEPLOYMENT
   # =========================================================================
   deploy-service:
     name: "Deploy: ${{ matrix.service }}"
-    needs: build-container
+    needs: [build-container, detect-changes]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     strategy:
@@ -272,6 +274,7 @@ jobs:
             user_sec: IAM_USER
             key_sec: IAM_KEY
             port: 22
+            changed: ${{ needs.detect-changes.outputs.iam == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
 
           - service: node-service
             folder: node-service
@@ -280,6 +283,7 @@ jobs:
             user_sec: NODE_USER
             key_sec: NODE_KEY
             port: 22
+            changed: ${{ needs.detect-changes.outputs.node == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
 
           - service: billing-service
             folder: billing-service
@@ -288,6 +292,7 @@ jobs:
             user_sec: BILLING_USER
             key_sec: BILLING_KEY
             port: 22
+            changed: ${{ needs.detect-changes.outputs.billing == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
 
           - service: support-service
             folder: support-service
@@ -296,6 +301,7 @@ jobs:
             user_sec: SUPPORT_USER
             key_sec: SUPPORT_KEY
             port: 22
+            changed: ${{ needs.detect-changes.outputs.support == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
 
           - service: notification-service
             folder: notification-service
@@ -304,6 +310,7 @@ jobs:
             user_sec: NOTIFICATION_USER
             key_sec: NOTIFICATION_KEY
             port: 22
+            changed: ${{ needs.detect-changes.outputs.notification == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
 
           - service: config-service
             folder: config-service
@@ -312,6 +319,7 @@ jobs:
             user_sec: CONFIG_USER
             key_sec: CONFIG_KEY
             port: 22
+            changed: ${{ needs.detect-changes.outputs.config == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
 
           - service: traffic-service
             folder: traffic-service
@@ -320,6 +328,7 @@ jobs:
             user_sec: TRAFFIC_USER
             key_sec: TRAFFIC_KEY
             port: 22
+            changed: ${{ needs.detect-changes.outputs.traffic == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
 
           - service: telegram-service
             folder: telegram-service
@@ -328,10 +337,24 @@ jobs:
             user_sec: TELEGRAM_USER
             key_sec: TELEGRAM_KEY
             port: 22
+            changed: ${{ needs.detect-changes.outputs.telegram == 'true' || needs.detect-changes.outputs.shared_lib == 'true' }}
 
     steps:
+      - name: Check if Host Secret is Configured
+        if: matrix.changed == 'true'
+        id: check_host
+        env:
+          HOST_VAL: ${{ secrets[matrix.host_sec] }}
+        run: |
+          if [ -n "$HOST_VAL" ]; then
+            echo "can_deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "can_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "ℹ️ Secret '${{ matrix.host_sec }}' is not configured. Skipping remote deployment for ${{ matrix.service }}."
+          fi
+
       - name: Deploy to Remote Target Server
-        if: ${{ secrets[matrix.host_sec] != '' }}
+        if: matrix.changed == 'true' && steps.check_host.outputs.can_deploy == 'true'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets[matrix.host_sec] }}
@@ -346,21 +369,19 @@ jobs:
             # 1. AUTOMATIC CRYPTOGRAPHIC KEY DISTRIBUTION
             # -------------------------------------------------------------
             mkdir -p keys logs uploads
-            
-            # Distribute Public Key to EVERY service server
+
             if [ -n "${{ secrets.JWT_PUBLIC_KEY }}" ]; then
               echo "${{ secrets.JWT_PUBLIC_KEY }}" > keys/jwt_public.pem
               chmod 644 keys/jwt_public.pem
             fi
 
-            # Distribute Private Key to IAM and Telegram Bot (for RS256 token delegation)
             if ([ "${{ matrix.service }}" = "iam-service" ] || [ "${{ matrix.service }}" = "telegram-service" ]) && [ -n "${{ secrets.JWT_PRIVATE_KEY }}" ]; then
               echo "${{ secrets.JWT_PRIVATE_KEY }}" > keys/jwt_private.pem
               chmod 600 keys/jwt_private.pem
             fi
 
             # -------------------------------------------------------------
-            # 2. DYNAMIC .ENV INGESTION (SECRETS & VARIABLES)
+            # 2. DYNAMIC .ENV INGESTION
             # -------------------------------------------------------------
             set_env() {
               local key="$1"
@@ -371,18 +392,13 @@ jobs:
               fi
             }
 
-            # Update Message Broker & Cache
             set_env "RABBITMQ_URL" "${{ secrets.RABBITMQ_URL }}"
             set_env "REDIS_URL"    "${{ secrets.REDIS_URL }}"
+            set_env "DB_PASSWORD" "${{ secrets.DB_PASSWORD }}"
 
-            # Update Database Credentials & Full URL
-            set_env "DB_PASSWORD"  "${{ secrets.DB_PASSWORD }}"
-            
-            # Universal password replacer inside DATABASE_URL regardless of the database host name
             if [ -n "${{ secrets.DATABASE_URL }}" ]; then
               set_env "DATABASE_URL" "${{ secrets.DATABASE_URL }}"
             elif [ -n "${{ secrets.DB_PASSWORD }}" ]; then
-              # Replaces password in: postgresql://user:PASSWORD@host:port/dbname
               sed -i -E "s|(postgresql://[^:]+:)[^@]+(@.*)|\1${{ secrets.DB_PASSWORD }}\2|" .env 2>/dev/null || true
             fi
 
@@ -394,47 +410,95 @@ jobs:
 
             echo "📦 Pulling new image tag: ${{ github.sha }}..."
             export IMAGE_TAG=${{ github.sha }}
+
+            CURRENT_CONTAINER=$(docker compose ps -q ${{ matrix.service }} 2>/dev/null || true)
+            if [ -n "$CURRENT_CONTAINER" ]; then
+              OLD_IMAGE=$(docker inspect "$CURRENT_CONTAINER" --format '{{.Image}}' 2>/dev/null || true)
+            else
+              OLD_IMAGE=""
+            fi
+
             docker compose pull ${{ matrix.service }}
 
-            echo "🚀 Performing zero-downtime rolling restart..."
+            echo "🚀 Performing deployment..."
             docker compose up -d --no-deps ${{ matrix.service }}
 
             # -------------------------------------------------------------
             # 4. HEALTH CHECK VERIFICATION GATE
             # -------------------------------------------------------------
+            REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+            IMAGE_REFERENCE="${{ env.REGISTRY }}/${REPO_OWNER}/vpn-${{ matrix.service }}:${{ github.sha }}"
+
             if [ "${{ matrix.service }}" != "telegram-service" ]; then
               echo "🏥 Verifying health check on port ${{ matrix.port_num }}..."
               sleep 4
               HEALTHY=0
+
               for i in $(seq 1 10); do
                 HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:${{ matrix.port_num }}/health || true)
+
                 if [ "$HTTP_STATUS" = "200" ]; then
                   echo "✅ Health check passed on attempt $i (HTTP 200)"
                   HEALTHY=1
                   break
                 fi
+
                 echo "⏳ Attempt $i/10: Received HTTP $HTTP_STATUS. Retrying in 3s..."
                 sleep 3
               done
 
               if [ "$HEALTHY" -ne 1 ]; then
                 echo "❌ CRITICAL: Health check failed! Initiating rollback..."
-                docker compose rollback || docker compose up -d --no-deps ${{ matrix.service }}:latest
+
+                if [ -n "$OLD_IMAGE" ]; then
+                  echo "🔄 Restoring previously running image..."
+                  NEW_CONTAINER=$(docker compose ps -q ${{ matrix.service }} 2>/dev/null || true)
+
+                  if [ -n "$NEW_CONTAINER" ]; then
+                    docker stop "$NEW_CONTAINER" 2>/dev/null || true
+                    docker rm "$NEW_CONTAINER" 2>/dev/null || true
+                  fi
+
+                  docker tag "$OLD_IMAGE" "$IMAGE_REFERENCE"
+                  docker compose up -d --no-deps ${{ matrix.service }}
+                  echo "🔄 Rollback completed."
+                else
+                  echo "⚠️ No previous image found. Unable to perform automatic rollback."
+                fi
+
                 exit 1
               fi
             else
-              # Dedicated verification for background Telegram worker (no HTTP port)
               echo "🤖 Verifying Telegram worker container is running..."
               sleep 4
+
               if docker ps --format '{{.Names}}' | grep -q "vpn-telegram-service"; then
                 echo "✅ Telegram worker container is active and running."
               else
                 echo "❌ CRITICAL: Telegram worker container failed to start!"
                 docker logs vpn-telegram-service --tail 50
+
+                if [ -n "$OLD_IMAGE" ]; then
+                  echo "🔄 Restoring previously running Telegram worker image..."
+                  NEW_CONTAINER=$(docker compose ps -q ${{ matrix.service }} 2>/dev/null || true)
+
+                  if [ -n "$NEW_CONTAINER" ]; then
+                    docker stop "$NEW_CONTAINER" 2>/dev/null || true
+                    docker rm "$NEW_CONTAINER" 2>/dev/null || true
+                  fi
+
+                  docker tag "$OLD_IMAGE" "$IMAGE_REFERENCE"
+                  docker compose up -d --no-deps ${{ matrix.service }}
+                  echo "🔄 Rollback completed."
+                else
+                  echo "⚠️ No previous image found. Unable to perform automatic rollback."
+                fi
+
                 exit 1
               fi
             fi
 
             echo "🧹 Pruning old unused images..."
             docker image prune -af --filter "until=48h"
+
             echo "✨ ${{ matrix.service }} deployed and verified successfully."

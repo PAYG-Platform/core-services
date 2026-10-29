@@ -7,8 +7,8 @@ from app.events.publisher import publish_notification_created
 
 from app.database import SessionLocal
 from app.models import Notification, UserNotificationPreferences, UserAccount
-from vpn_shared.events import EventKeys
-from vpn_shared.schemas import RoleEnum
+from mng_shared.events import EventKeys
+from mng_shared.schemas import RoleEnum
 from app.core.event_bus import manager
 
 logger = logging.getLogger(__name__)
@@ -266,7 +266,7 @@ async def handle_payment_processed(msg: dict):
                     notif_message = f"Administrator deducted {amt_str} gift credit from your wallet.{memo_part}"
                 else:
                     title = "🎁 Gift Credit Received"
-                    notif_message = f"Administrator credited {amt_str} gift credit to your wallet.{memo_part} Your VPN configurations are active."
+                    notif_message = f"Administrator credited {amt_str} gift credit to your wallet.{memo_part} Your Traffic Routing configurations are active."
                 category = "billing"
                 link_url = "/client/wallet"
                 requires_ack = False
@@ -275,7 +275,7 @@ async def handle_payment_processed(msg: dict):
                 if action == "Debit":
                     notif_message = f"Administrator deducted {amt_str} from your wallet balance.{memo_part}"
                 else:
-                    notif_message = f"Administrator credited {amt_str} to your wallet balance.{memo_part} Your VPN configurations are active."
+                    notif_message = f"Administrator credited {amt_str} to your wallet balance.{memo_part} Your Traffic Routing configurations are active."
                 category = "billing"
                 link_url = "/client/wallet"
                 requires_ack = False
@@ -302,7 +302,7 @@ async def handle_payment_processed(msg: dict):
                     link_url = "/client/history?tab=refunds"
                 else:
                     title = "✅ Top-Up Approved"
-                    notif_message = f"Your top-up of {amt_str}{ref_suffix} has been approved. Your balance and VPN credentials have been updated."
+                    notif_message = f"Your top-up of {amt_str}{ref_suffix} has been approved. Your balance and Traffic Routing credentials have been updated."
                     link_url = "/client/wallet"
                 category = "billing"
                 requires_ack = False
@@ -403,10 +403,10 @@ async def handle_wallet_empty_notification(msg: dict):
         prefs.is_empty_warned = True
         db.commit()
 
-        title = "🛑 VPN Connections Disabled - Balance Exhausted"
+        title = "🛑 Traffic Routing Connections Disabled - Balance Exhausted"
         body = (
             f"Your usable wallet balance has reached 0 (or entered negative debt).\n\n"
-            f"• What happened: All VPN configurations have been temporarily disabled on server nodes to prevent further debt.\n"
+            f"• What happened: All Traffic Routing configurations have been temporarily disabled on server nodes to prevent further debt.\n"
             f"• What you must do: Your server slots are reserved during your {grace_days}-day grace period. "
             f"Please top up your wallet in the Wallet section to reactivate your connections immediately and prevent permanent configuration deletion."
         )
@@ -474,7 +474,7 @@ async def handle_grace_period_warning_notification(msg: dict):
 
         title = f"⏳ Grace Period Alert: Day {grace_day} of {grace_days_total}"
         body = (
-            f"Your VPN service has been disabled for {grace_day} day(s) due to an empty balance.\n\n"
+            f"Your Traffic Routing service has been disabled for {grace_day} day(s) due to an empty balance.\n\n"
             f"• Status: Your server node configurations are currently reserved, but only {days_remaining} day(s) remain in your grace period.\n"
             f"• Required Action: Please top up your wallet today. If your balance is not topped up before the grace period ends, your server configurations will be permanently deleted and slots released."
         )
@@ -526,10 +526,10 @@ async def handle_config_released_notification(msg: dict):
     db = SessionLocal()
     try:
         user_uuid = uuid.UUID(str(raw_user_id))
-        title = "⚠️ VPN Configurations Released"
+        title = "⚠️ Traffic Routing Configurations Released"
         body = (
             "Your grace period has expired without a top-up.\n\n"
-            "• What happened: Your reserved VPN server configurations have been permanently removed from the panels.\n"
+            "• What happened: Your reserved Traffic Routing server configurations have been permanently removed from the panels.\n"
             "• What you must do: You can reconnect at any time by depositing funds in your wallet to automatically provision new server configurations."
         )
 
@@ -687,7 +687,7 @@ async def handle_user_suspended_notification(msg: dict):
         user_uuid = uuid.UUID(str(raw_user_id))
         title = "⛔ Account Suspended by Administration"
         body = (
-            "Your account and VPN services have been suspended by an administrator. "
+            "Your account and Traffic Routing services have been suspended by an administrator. "
             "Please submit a support inquiry or reply to your open tickets for review."
         )
 
@@ -742,7 +742,7 @@ async def handle_user_activated_notification(msg: dict):
         user_uuid = uuid.UUID(str(raw_user_id))
         title = "✅ Account Reactivated"
         body = (
-            "Your account and VPN services have been reactivated by an administrator. "
+            "Your account and Traffic Routing services have been reactivated by an administrator. "
             "Your access and configurations are restored."
         )
 
@@ -939,10 +939,10 @@ async def handle_server_offline(msg: dict):
     1. Sends technical diagnostic alert to platform Admins.
     2. Sends sanitized, non-critical alert to all affected Clients hosted on that server.
     """
-    server_name = msg.get("server_name", "VPN Node")
+    server_name = msg.get("server_name", "Traffic Routing Node")
     api_url = msg.get("api_url", "")
     error_message = msg.get("error_message") or "Connection timed out or host unreachable."
-    location_name = msg.get("location_name") or "VPN Region"
+    location_name = msg.get("location_name") or "Traffic Routing Region"
     affected_user_ids = msg.get("affected_user_ids") or []
     
     # 1. Technical Admin Alert
@@ -957,7 +957,7 @@ async def handle_server_offline(msg: dict):
     user_message = (
         f"The server node for '{location_name}' is currently experiencing a temporary network outage or undergoing maintenance. "
         f"Our team is investigating to restore it.\n\n"
-        f"• What you can do: If your connection is affected, please switch to another location in your VPN app, "
+        f"• What you can do: If your connection is affected, please switch to another location in your Traffic Routing app, "
         f"or use the dashboard to replace your route."
     )
     
@@ -1032,9 +1032,9 @@ async def handle_server_recovered(msg: dict):
     1. Sends technical recovery alert to Admins.
     2. Sends sanitized recovery notification to all affected Clients hosted on that server.
     """
-    server_name = msg.get("server_name", "VPN Node")
+    server_name = msg.get("server_name", "Traffic Routing Node")
     api_url = msg.get("api_url", "")
-    location_name = msg.get("location_name") or "VPN Region"
+    location_name = msg.get("location_name") or "Traffic Routing Region"
     affected_user_ids = msg.get("affected_user_ids") or []
 
     # 1. Technical Admin Alert
@@ -1048,7 +1048,7 @@ async def handle_server_recovered(msg: dict):
     user_title = f"🟢 Server Node Restored: {location_name}"
     user_message = (
         f"The server node for '{location_name}' has recovered and is back online.\n\n"
-        f"• What you should do: You can now reconnect. If needed, tap 'Update Subscription' in your VPN app to sync."
+        f"• What you should do: You can now reconnect. If needed, tap 'Update Subscription' in your Traffic Routing app to sync."
     )
 
     db = SessionLocal()
@@ -1128,35 +1128,35 @@ async def handle_server_changed(msg: dict):
     if not raw_user_ids:
         return
 
-    server_name = msg.get("server_name", "VPN Node")
+    server_name = msg.get("server_name", "Traffic Routing Node")
     action = msg.get("action", "updated")
-    location_name = msg.get("location_name") or "VPN Region"
+    location_name = msg.get("location_name") or "Traffic Routing Region"
     custom_msg = msg.get("message")
 
     if action == "added":
-        title = f"🌐 New VPN Configuration Added: {location_name}"
+        title = f"🌐 New Traffic Routing Configuration Added: {location_name}"
         body = (
             f"{custom_msg}\n\n"
             if custom_msg else
-            f"A new VPN configuration for '{location_name}' has been added to your account by an administrator.\n\n"
-            f"• What you should do: Please update/refresh your subscription link in your VPN app (v2rayNG, Sing-box, Shadowrocket), "
+            f"A new Traffic Routing configuration for '{location_name}' has been added to your account by an administrator.\n\n"
+            f"• What you should do: Please update/refresh your subscription link in your Traffic Routing app (v2rayNG, Sing-box, Shadowrocket), "
             f"or check the website or Telegram bot to view and copy your new configuration."
         )
     elif action in ("removed", "deleted"):
-        title = f"⚠️ VPN Configuration Removed: {location_name}"
+        title = f"⚠️ Traffic Routing Configuration Removed: {location_name}"
         body = (
             f"{custom_msg}\n\n"
             if custom_msg else
-            f"Your VPN configuration for '{location_name}' was removed by an administrator.\n\n"
-            f"• What you should do: Please update/refresh your subscription link in your VPN app to sync your active server list."
+            f"Your Traffic Routing configuration for '{location_name}' was removed by an administrator.\n\n"
+            f"• What you should do: Please update/refresh your subscription link in your Traffic Routing app to sync your active server list."
         )
     else:
-        title = f"🔄 VPN Configuration Changed: {location_name}"
+        title = f"🔄 Traffic Routing Configuration Changed: {location_name}"
         body = (
             f"{custom_msg}\n\n"
             if custom_msg else
-            f"Your VPN configuration for '{location_name}' ({server_name}) has been {action}.\n\n"
-            f"• What you should do: Please update/refresh your subscription link in your VPN app to sync the latest node settings. "
+            f"Your Traffic Routing configuration for '{location_name}' ({server_name}) has been {action}.\n\n"
+            f"• What you should do: Please update/refresh your subscription link in your Traffic Routing app to sync the latest node settings. "
             f"If the connection fails or is blocked, please replace the server from your dashboard."
         )
 
@@ -1245,7 +1245,7 @@ async def handle_server_replaced(msg: dict):
     message = (
         f"Server node '{old_server_name}' was blocked by {reason} and has been replaced with: {rep_str}.\n\n"
         "Your universal subscription link has already been updated automatically. "
-        "Please open your VPN app, tap 'Update Subscription', and connect to your new working node."
+        "Please open your Traffic Routing app, tap 'Update Subscription', and connect to your new working node."
     )
 
     db = SessionLocal()

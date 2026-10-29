@@ -1,6 +1,6 @@
 # 🏛️ Microservices Specification & Domain Boundaries
 
-This document provides a comprehensive technical specification for the 8 core backend microservices, the API Gateway, and the shared library comprising the **PAYG VPN Platform**.
+This document provides a comprehensive technical specification for the 8 core backend microservices, the API Gateway, and the shared library comprising the **PAYG MNG Platform**.
 
 ---
 
@@ -16,7 +16,7 @@ This document provides a comprehensive technical specification for the 8 core ba
 - [8. System Config & Policy Service (`config-service`)](#8-system-config--policy-service-config-service)
 - [9. Traffic Metering & Attribution Service (`traffic-service`)](#9-traffic-metering--attribution-service-traffic-service)
 - [10. Telegram Bot MTProto Worker (`telegram-service`)](#10-telegram-bot-mtproto-worker-telegram-service)
-- [11. Shared Framework Library (`shared-lib` / `vpn_shared`)](#11-shared-framework-library-shared-lib--vpn_shared)
+- [11. Shared Framework Library (`shared-lib` / `mng_shared`)](#11-shared-framework-library-shared-lib--mng_shared)
 
 ---
 
@@ -76,7 +76,7 @@ This document provides a comprehensive technical specification for the 8 core ba
 4. **Emergency Recovery System:** Generates 12 cryptographically random alphanumeric single-use recovery keys (`secrets.choice` across `A-Z, 0-9`).
 5. **Account Lifecycle & Governance:**
    * Admin-initiated account suspension/activation (emits `USER_SUSPENDED` / `USER_ACTIVATED`).
-   * Client self-service VPN traffic pause/resume with dynamic cooldown timers.
+   * Client self-service traffic pause/resume with dynamic cooldown timers.
 6. **Telegram Account Association:** Issues single-use start tokens (`tk_...`) and verifies deep-link callbacks.
 
 ---
@@ -135,7 +135,7 @@ This document provides a comprehensive technical specification for the 8 core ba
 2. **In-App Notification Inbox:** Persists historical alerts with categorized labels (`billing`, `ticket`, `server`, `security`).
 3. **Edge-Triggered Low-Balance Warning:** Employs an `is_low_balance_warned` latch to fire low-balance warnings **exactly once** when remaining usable credit drops below the user's custom threshold.
 4. **Mandatory Acknowledgment Notices:** Displays blocking modals for critical system alerts (e.g., emergency server migrations) requiring explicit user confirmation before dismissal.
-5. **Universal Push Gateway:** Emits `vpn.events.notification_created` to dispatch alerts to the Telegram bot worker.
+5. **Universal Push Gateway:** Emits `mng.events.notification_created` to dispatch alerts to the Telegram bot worker.
 
 ---
 
@@ -181,14 +181,14 @@ This document provides a comprehensive technical specification for the 8 core ba
 
 ---
 
-## 11. Shared Framework Library (`shared-lib` / `vpn_shared`)
+## 11. Shared Framework Library (`shared-lib` / `mng_shared`)
 
 * **Packaging:** Python package (`pip install -e /shared-lib`) installed across all containers.
 
 ### Core Modules:
-1. **`vpn_shared.events`:** Authoritative registry of all queue and exchange names (`EventKeys`).
-2. **`vpn_shared.jwt_auth`:** RS256 token verification, dual-transport extraction (HttpOnly cookie and Authorization header), and FastAPI dependency helpers (`get_current_user_payload`).
-3. **`vpn_shared.logger`:** Centralized enterprise dual-channel logging engine (`setup_logging`). Outputs unbuffered logs to `stdout` for Docker streaming while writing to auto-rotating UTF-8 host files (`RotatingFileHandler` with 15MB cap and 7 backups). Intercepts and formats Uvicorn, FastStream, Telethon, and APScheduler logs uniformly.
-4. **`vpn_shared.rate_limiter`:** Sliding-window rate limiter powered by Redis Lua scripts, configured per-service via `config/rate_limits.yml`.
-5. **`vpn_shared.schemas`:** System-wide Pydantic models for AMQP event payloads.
-6. **`vpn_shared.utils`:** Unit converters (Bytes $\longleftrightarrow$ GB).
+1. **`mng_shared.events`:** Authoritative registry of all queue and exchange names (`EventKeys`).
+2. **`mng_shared.jwt_auth`:** RS256 token verification, dual-transport extraction (HttpOnly cookie and Authorization header), and FastAPI dependency helpers (`get_current_user_payload`).
+3. **`mng_shared.logger`:** Centralized enterprise dual-channel logging engine (`setup_logging`). Outputs unbuffered logs to `stdout` for Docker streaming while writing to auto-rotating UTF-8 host files (`RotatingFileHandler` with 15MB cap and 7 backups). Intercepts and formats Uvicorn, FastStream, Telethon, and APScheduler logs uniformly.
+4. **`mng_shared.rate_limiter`:** Sliding-window rate limiter powered by Redis Lua scripts, configured per-service via `config/rate_limits.yml`.
+5. **`mng_shared.schemas`:** System-wide Pydantic models for AMQP event payloads.
+6. **`mng_shared.utils`:** Unit converters (Bytes $\longleftrightarrow$ GB).

@@ -10,8 +10,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
-from vpn_shared.schemas import RoleEnum
-from vpn_shared import EventKeys
+from mng_shared.schemas import RoleEnum
+from mng_shared import EventKeys
 from app.events.publisher import (
     broker, 
     publish_user_created_event,
@@ -272,7 +272,7 @@ async def self_toggle_status(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Client Self-Service VPN Suspension / Pause:
+    Client Self-Service Traffic Routing Suspension / Pause:
     - Cooldown duration (in minutes) configured dynamically by Admin.
     - If set to 0, immediate activation/deactivation with zero cooldown.
     - Publishes an asynchronous event to Node Service.
@@ -293,7 +293,7 @@ async def self_toggle_status(
             minutes_remaining = math.ceil(seconds_remaining / 60)
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Rate limit reached: You can toggle your VPN status once every {cooldown_mins} minute(s). Please try again in ~{minutes_remaining} minute(s)."
+                detail=f"Rate limit reached: You can toggle your Traffic Routing status once every {cooldown_mins} minute(s). Please try again in ~{minutes_remaining} minute(s)."
             )
 
     current_user.is_self_suspended = not current_user.is_self_suspended
@@ -308,11 +308,11 @@ async def self_toggle_status(
         else:
             await broker.publish({"user_id": str(current_user.id)}, queue=EventKeys.USER_VPN_RESUMED)
     except Exception as e:
-        logger.error(f"Failed to publish VPN toggle event to message broker: {e}")
+        logger.error(f"Failed to publish Traffic Routing toggle event to message broker: {e}")
 
-    action_label = "Paused (VPN Disabled)" if current_user.is_self_suspended else "Active (VPN Resumed)"
+    action_label = "Paused (Traffic Routing Disabled)" if current_user.is_self_suspended else "Active (Traffic Routing Resumed)"
     return {
-        "message": f"VPN status changed to {action_label}.",
+        "message": f"Traffic Routing status changed to {action_label}.",
         "is_active": current_user.is_active,
         "is_self_suspended": current_user.is_self_suspended,
         "status_toggled_at": current_user.status_toggled_at
@@ -473,7 +473,7 @@ def sync_cooldown_internal(
 # TELEGRAM ACCOUNT LINKING (IAM DOMAIN)
 # ==========================================
 
-TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "PAYG_VPN_Bot")
+TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "PAYG_MNG_Bot")
 
 
 @router.get("/me/telegram-link", response_model=TelegramLinkResponse)

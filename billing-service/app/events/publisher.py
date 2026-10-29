@@ -3,7 +3,7 @@ import os
 import logging
 from typing import Optional
 from faststream.rabbit import RabbitBroker
-from vpn_shared import EventKeys
+from mng_shared import EventKeys
 
 logger = logging.getLogger(__name__)
 

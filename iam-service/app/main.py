@@ -13,7 +13,7 @@ from app.api.users import router as users_router
 from app.events.publisher import broker
 from app.events.consumer import iam_router, load_local_cooldown
 from app.database import engine, Base, SessionLocal
-from vpn_shared.logger import setup_logging
+from mng_shared.logger import setup_logging
 
 # --------------------------------------------------------------------------
 # File & Console Logging Configuration

@@ -10,7 +10,7 @@ from app.database import engine, Base
 import app.models
 from app.events.consumer import support_consumer_router
 from app.api.tickets import router as tickets_router
-from vpn_shared.logger import setup_logging
+from mng_shared.logger import setup_logging
 
 logger = setup_logging("support-service")
 

@@ -28,7 +28,7 @@ from app.schemas import (
     TopupNoteUpdate,
 )
 from app.core.dependencies import get_current_user_id
-from vpn_shared.jwt_auth import get_current_user_payload
+from mng_shared.jwt_auth import get_current_user_payload
 from app.utils import save_base64_receipt_to_disk
 from app.events.publisher import (
     publish_wallet_funded,
@@ -54,7 +54,7 @@ def calculate_user_credit_state(user_id: uuid.UUID, db: Session) -> Dict[str, fl
     Calculates separated financial balances:
     - gift_balance: Promotional credit (always >= 0)
     - paid_balance: Real fiat/crypto balance (can be negative)
-    - usable_credit: Credit available to route VPN traffic (gift + max(0, paid))
+    - usable_credit: Credit available to route MNG traffic (gift + max(0, paid))
     """
     gift_bal = db.query(func.sum(WalletBucket.balance)).filter(
         WalletBucket.user_id == user_id,

@@ -17,7 +17,7 @@ NOTIFICATION_SERVICE_URL = os.getenv("NOTIFICATION_SERVICE_URL", "http://notific
 IAM_SERVICE_URL = os.getenv("IAM_SERVICE_URL", f"{API_GATEWAY_URL}/api/iam").rstrip("/")
 
 FALLBACK_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-FALLBACK_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "PAYG_VPN_Bot").strip()
+FALLBACK_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "PAYG_MNG_Bot").strip()
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0").strip()
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://admin:super_secret_rmq_pass@rabbitmq:5672/").strip()

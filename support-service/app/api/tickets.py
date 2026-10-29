@@ -19,7 +19,7 @@ from app.schemas import (
     TicketMessageResponse, 
     TicketResponse
 )
-from vpn_shared.jwt_auth import verify_jwt_token
+from mng_shared.jwt_auth import verify_jwt_token
 
 logger = logging.getLogger(__name__)
 

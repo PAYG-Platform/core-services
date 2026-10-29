@@ -28,7 +28,7 @@ from app.services.provisioning import (
 )
 from app.events.publisher import broker, publish_location_capacity_event
 from app.xui_client import XUIClient
-from vpn_shared.events import EventKeys
+from mng_shared.events import EventKeys
 
 logger = logging.getLogger(__name__)
 node_router = RabbitRouter()
@@ -98,7 +98,7 @@ async def handle_user_created(msg: dict):
 @node_router.subscriber(EventKeys.CONFIG_RESERVATION_REQUESTED)
 async def handle_config_reservation_requested(msg: dict):
     """
-    Atomically reserves one concrete VPN slot for a client's regional purchase.
+    Atomically reserves one concrete Traffic Routing slot for a client's regional purchase.
     Enforces idempotency and the single-config-per-region rule.
     """
     raw_user_id = msg.get("user_id")
@@ -400,7 +400,7 @@ async def handle_config_reservation_consume(msg: dict):
         )
 
         await sync_location_capacity(db, reservation.location_id)
-        logger.info(f"Provisioned VPN config '{config_name}' on server {server.name} ({reservation.protocol}).")
+        logger.info(f"Provisioned Traffic Routing config '{config_name}' on server {server.name} ({reservation.protocol}).")
 
     except Exception as e:
         db.rollback()
@@ -588,7 +588,7 @@ async def handle_wallet_funded(msg: dict):
         # Provision any missing locations
         username = subscription.username if subscription else None
         await provision_user_configs_for_all_locations(db, user_id, username=username, is_active=True)
-        logger.info(f"Enabled VPN configurations for User {user_id} via WALLET_FUNDED.")
+        logger.info(f"Enabled Traffic Routing configurations for User {user_id} via WALLET_FUNDED.")
 
     except Exception as e:
         db.rollback()
@@ -877,7 +877,7 @@ async def handle_user_activated_by_admin(msg: dict):
         db.commit()
         db.refresh(sub)
 
-        # Only provision configs if user has credit and hasn't paused their own VPN
+        # Only provision configs if user has credit and hasn't paused their own Traffic Routing
         should_provision = bool(sub.has_credit and not sub.is_self_suspended)
         if should_provision:
             username = sub.username or f"usr_{str(user_id)[:8]}"
@@ -895,7 +895,7 @@ async def handle_user_activated_by_admin(msg: dict):
 @node_router.subscriber(EventKeys.USER_VPN_PAUSED)
 async def handle_user_vpn_paused_by_client(msg: dict):
     """
-    Triggered when Client self-suspends/pauses their VPN in Account Settings.
+    Triggered when Client self-suspends/pauses their Traffic Routing in Account Settings.
     Disables 3X-UI configs. (Client remains logged in).
     """
     raw_user_id = msg.get("user_id")
@@ -926,7 +926,7 @@ async def handle_user_vpn_paused_by_client(msg: dict):
             config.is_active = False
 
         db.commit()
-        logger.info(f"Client self-paused VPN: Turned OFF 3X-UI configs for User {user_id}.")
+        logger.info(f"Client self-paused Traffic Routing: Turned OFF 3X-UI configs for User {user_id}.")
     except Exception as e:
         db.rollback()
         logger.error(f"Error handling USER_VPN_PAUSED for user {user_id}: {e}")
@@ -937,7 +937,7 @@ async def handle_user_vpn_paused_by_client(msg: dict):
 @node_router.subscriber(EventKeys.USER_VPN_RESUMED)
 async def handle_user_vpn_resumed_by_client(msg: dict):
     """
-    Triggered when Client reactivates their VPN in Account Settings.
+    Triggered when Client reactivates their Traffic Routing in Account Settings.
     Enables configs ONLY if user has credit and is not admin-suspended!
     """
     raw_user_id = msg.get("user_id")
@@ -975,7 +975,7 @@ async def handle_user_vpn_resumed_by_client(msg: dict):
             username = sub.username if sub else None
             await provision_user_configs_for_all_locations(db, user_id, username=username, is_active=True)
 
-        logger.info(f"Client self-resumed VPN: User {user_id} enabled={should_enable} (has_credit={sub.has_credit if sub else False}).")
+        logger.info(f"Client self-resumed Traffic Routing: User {user_id} enabled={should_enable} (has_credit={sub.has_credit if sub else False}).")
     except Exception as e:
         db.rollback()
         logger.error(f"Error handling USER_VPN_RESUMED for user {user_id}: {e}")

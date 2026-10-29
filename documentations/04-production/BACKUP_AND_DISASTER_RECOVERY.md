@@ -1,6 +1,6 @@
 # 💾 Backup, Archival & Disaster Recovery Runbook
 
-This guide specifies the operational backup procedures, offsite replication, incremental file sync, encryption of sensitive secrets, and end-to-end restore drills for the **PAYG VPN Platform**.
+This guide specifies the operational backup procedures, offsite replication, incremental file sync, encryption of sensitive secrets, and end-to-end restore drills for the **PAYG MNG Platform**.
 
 ---
 
@@ -61,28 +61,28 @@ Each microservice isolates its domain in a dedicated PostgreSQL 17 database.
 
 ### 3.1 Automated Multi-Database Backup Script
 
-Save this script on your database server as `/opt/payg-vpn/scripts/backup_postgres.sh`:
+Save this script on your database server as `/opt/payg-mng/scripts/backup_postgres.sh`:
 
 ```bash
 #!/bin/bash
 set -eo pipefail
 
 TIMESTAMP=$(date +%Y-%m-%d_%H%M%S)
-BACKUP_DIR="/opt/payg-vpn/backups/database/${TIMESTAMP}"
+BACKUP_DIR="/opt/payg-mng/backups/database/${TIMESTAMP}"
 mkdir -p "$BACKUP_DIR"
 
 DB_USER="${DB_USER:-vpn_prod_admin}"
-DB_CONTAINER_PREFIX="${DB_CONTAINER_PREFIX:-vpn-postgres}"
+DB_CONTAINER_PREFIX="${DB_CONTAINER_PREFIX:-mng-postgres}"
 
 # Databases mapped to their respective container names
 declare -A DBS=(
-  ["iam_prod_db"]="vpn-postgres-iam-prod"
-  ["node_prod_db"]="vpn-postgres-node-prod"
-  ["billing_prod_db"]="vpn-postgres-billing-prod"
-  ["support_prod_db"]="vpn-postgres-support-prod"
-  ["notification_prod_db"]="vpn-postgres-notification-prod"
-  ["config_prod_db"]="vpn-postgres-config-prod"
-  ["traffic_prod_db"]="vpn-postgres-traffic-prod"
+  ["iam_prod_db"]="mng-postgres-iam-prod"
+  ["node_prod_db"]="mng-postgres-node-prod"
+  ["billing_prod_db"]="mng-postgres-billing-prod"
+  ["support_prod_db"]="mng-postgres-support-prod"
+  ["notification_prod_db"]="mng-postgres-notification-prod"
+  ["config_prod_db"]="mng-postgres-config-prod"
+  ["traffic_prod_db"]="mng-postgres-traffic-prod"
 )
 
 echo "======================================================="
@@ -130,8 +130,8 @@ To restore a database after corruption or hardware failure:
 
 ```bash
 # Example: Restoring billing_prod_db
-BACKUP_FILE="/opt/payg-vpn/backups/database/2026-09-26_030000/billing_prod_db.sql.gz"
-CONTAINER="vpn-postgres-billing-prod"
+BACKUP_FILE="/opt/payg-mng/backups/database/2026-09-26_030000/billing_prod_db.sql.gz"
+CONTAINER="mng-postgres-billing-prod"
 DB_NAME="billing_prod_db"
 DB_USER="vpn_prod_admin"
 
@@ -171,27 +171,27 @@ Whether services are grouped on one machine or scattered across different VPS no
 
 ### 4.2 Local Archival & Compression
 
-Create `/opt/payg-vpn/scripts/backup_uploads.sh`:
+Create `/opt/payg-mng/scripts/backup_uploads.sh`:
 
 ```bash
 #!/bin/bash
 set -eo pipefail
 
 TIMESTAMP=$(date +%Y-%m-%d_%H%M%S)
-BACKUP_DIR="/opt/payg-vpn/backups/media/${TIMESTAMP}"
+BACKUP_DIR="/opt/payg-mng/backups/media/${TIMESTAMP}"
 mkdir -p "$BACKUP_DIR"
 
 echo "📦 Archiving uploaded media files..."
 
 # If running single-host monorepo
-if [ -d "/opt/payg-vpn/core-services/data/prod/uploads" ]; then
+if [ -d "/opt/payg-mng/core-services/data/prod/uploads" ]; then
   tar -czf "${BACKUP_DIR}/monorepo_uploads_${TIMESTAMP}.tar.gz" \
-    -C /opt/payg-vpn/core-services/data/prod uploads
+    -C /opt/payg-mng/core-services/data/prod uploads
   echo "✅ Archived monorepo uploads directory."
 fi
 
 # If running standalone service folders
-for SVC_DIR in "/opt/payg-vpn/billing-service" "/opt/payg-vpn/support-service"; do
+for SVC_DIR in "/opt/payg-mng/billing-service" "/opt/payg-mng/support-service"; do
   if [ -d "${SVC_DIR}/uploads" ]; then
     SVC_NAME=$(basename "$SVC_DIR")
     tar -czf "${BACKUP_DIR}/${SVC_NAME}_uploads_${TIMESTAMP}.tar.gz" \
@@ -217,7 +217,7 @@ rclone config
 #### Step 2: Offsite Synchronization Command
 ```bash
 # Sync local backups to an encrypted S3 bucket
-rclone sync /opt/payg-vpn/backups/ remote-backup:payg-vpn-backups/$(hostname)/ \
+rclone sync /opt/payg-mng/backups/ remote-backup:payg-mng-backups/$(hostname)/ \
   --transfers 4 \
   --checkers 8 \
   --fast-list \
@@ -239,7 +239,7 @@ Encrypt secrets using **OpenSSL AES-256-CBC** with a master passphrase before sa
 set -eo pipefail
 
 TIMESTAMP=$(date +%Y-%m-%d_%H%M%S)
-BACKUP_DIR="/opt/payg-vpn/backups/secrets/${TIMESTAMP}"
+BACKUP_DIR="/opt/payg-mng/backups/secrets/${TIMESTAMP}"
 mkdir -p "$BACKUP_DIR"
 
 VAULT_PASSWORD="${VAULT_PASSWORD:-ChangeThisMasterPassphraseInProduction!}"
@@ -249,9 +249,9 @@ echo "🔐 Creating encrypted archive of cryptographic keys and .env..."
 # Create a temporary staging archive
 TEMP_TAR=$(mktemp)
 tar -czf "$TEMP_TAR" \
-  -C /opt/payg-vpn/core-services keys .env 2>/dev/null || \
+  -C /opt/payg-mng/core-services keys .env 2>/dev/null || \
 tar -czf "$TEMP_TAR" \
-  -C /opt/payg-vpn keys .env 2>/dev/null
+  -C /opt/payg-mng keys .env 2>/dev/null
 
 # Encrypt the tarball using AES-256 with PBKDF2 key derivation
 openssl enc -aes-256-cbc -salt -pbkdf2 -iter 100000 \
@@ -281,28 +281,28 @@ tar -xzf secrets_restored.tar.gz
 Redis retains sliding-window rate limit counters and Telegram Bot FSM conversation state:
 ```bash
 # Force background snapshot to disk (creates /data/dump.rdb)
-docker exec vpn-redis redis-cli BGSAVE
+docker exec mng-redis redis-cli BGSAVE
 
 # Backup the RDB dump file
-cp /opt/payg-vpn/core-services/data/redis/dump.rdb \
-   /opt/payg-vpn/backups/redis_dump_$(date +%Y-%m-%d).rdb
+cp /opt/payg-mng/core-services/data/redis/dump.rdb \
+   /opt/payg-mng/backups/redis_dump_$(date +%Y-%m-%d).rdb
 ```
 
 ### RabbitMQ Schema & Definitions Export
 Export users, vhosts, queues, exchanges, and bindings:
 ```bash
-docker exec vpn-rabbitmq-prod rabbitmqctl export_definitions \
+docker exec mng-rabbitmq-prod rabbitmqctl export_definitions \
   /var/lib/rabbitmq/rabbitmq_definitions_$(date +%Y-%m-%d).json
 
-cp /opt/payg-vpn/core-services/data/prod/rabbitmq/rabbitmq_definitions_*.json \
-   /opt/payg-vpn/backups/
+cp /opt/payg-mng/core-services/data/prod/rabbitmq/rabbitmq_definitions_*.json \
+   /opt/payg-mng/backups/
 ```
 
 ---
 
 ## 7. Master Unified Backup Script (`backup_all.sh`)
 
-Consolidate all routines into a single idempotent script `/opt/payg-vpn/scripts/backup_all.sh`:
+Consolidate all routines into a single idempotent script `/opt/payg-mng/scripts/backup_all.sh`:
 
 ```bash
 #!/bin/bash
@@ -310,12 +310,12 @@ set -eo pipefail
 
 START_TIME=$(date +%s)
 DATE_TAG=$(date +%Y-%m-%d_%H%M%S)
-BASE_BACKUP_DIR="/opt/payg-vpn/backups"
+BASE_BACKUP_DIR="/opt/payg-mng/backups"
 DAILY_DIR="${BASE_BACKUP_DIR}/${DATE_TAG}"
 
 mkdir -p "$DAILY_DIR/databases" "$DAILY_DIR/media" "$DAILY_DIR/secrets"
 
-echo "🚀 [$(date)] Initiating Full PAYG VPN Backup Suite..."
+echo "🚀 [$(date)] Initiating Full PAYG MNG Backup Suite..."
 
 # 1. Back up all PostgreSQL databases
 DB_USER="${DB_USER:-vpn_prod_admin}"
@@ -328,15 +328,15 @@ for CONTAINER in $(docker ps --format '{{.Names}}' | grep "postgres"); do
 done
 
 # 2. Back up media and receipts
-if [ -d "/opt/payg-vpn/core-services/data/prod/uploads" ]; then
+if [ -d "/opt/payg-mng/core-services/data/prod/uploads" ]; then
   echo "  -> Archiving uploads..."
-  tar -czf "${DAILY_DIR}/media/uploads.tar.gz" -C /opt/payg-vpn/core-services/data/prod uploads
+  tar -czf "${DAILY_DIR}/media/uploads.tar.gz" -C /opt/payg-mng/core-services/data/prod uploads
 fi
 
 # 3. Encrypt and back up keys & environment
-if [ -d "/opt/payg-vpn/core-services/keys" ]; then
+if [ -d "/opt/payg-mng/core-services/keys" ]; then
   echo "  -> Encrypting secrets vault..."
-  tar -czf - -C /opt/payg-vpn/core-services keys .env 2>/dev/null | \
+  tar -czf - -C /opt/payg-mng/core-services keys .env 2>/dev/null | \
     openssl enc -aes-256-cbc -salt -pbkdf2 -iter 100000 \
     -out "${DAILY_DIR}/secrets/vault.tar.gz.enc" \
     -pass pass:"${VAULT_PASSWORD:-DefaultSecretKeyDoNotUseInProduction}"
@@ -345,7 +345,7 @@ fi
 # 4. Offsite replication via Rclone (if configured)
 if command -v rclone &> /dev/null && rclone listremotes | grep -q "remote-backup:"; then
   echo "  -> Syncing archive to cloud object storage..."
-  rclone copy "$DAILY_DIR" "remote-backup:payg-vpn-backups/${DATE_TAG}/" --transfers 4
+  rclone copy "$DAILY_DIR" "remote-backup:payg-mng-backups/${DATE_TAG}/" --transfers 4
 fi
 
 # 5. Retention Pruning: Remove local backups older than 14 days
@@ -363,10 +363,10 @@ echo "✅ [$(date)] Complete backup finished successfully in ${ELAPSED} seconds.
 Install a cron job running every night at **03:00 AM server time**:
 
 ```bash
-chmod +x /opt/payg-vpn/scripts/backup_all.sh
+chmod +x /opt/payg-mng/scripts/backup_all.sh
 
 # Add to system crontab
-(crontab -l 2>/dev/null; echo "0 3 * * * /opt/payg-vpn/scripts/backup_all.sh >> /var/log/payg_backup.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "0 3 * * * /opt/payg-mng/scripts/backup_all.sh >> /var/log/payg_backup.log 2>&1") | crontab -
 ```
 
 ### Recommended Retention Schedule (Grandfather-Father-Son)
@@ -383,38 +383,38 @@ In a disaster recovery event (e.g., destroyed host, corrupted disk):
 ### Step 1: Provision Clean Server & Install Runtime
 ```bash
 sudo apt update && sudo apt install -y docker.io docker-compose-v2 openssl rclone
-mkdir -p /opt/payg-vpn
-cd /opt/payg-vpn
+mkdir -p /opt/payg-mng
+cd /opt/payg-mng
 ```
 
 ### Step 2: Download Backups & Restore Vault
 ```bash
 # Pull latest backup folder from remote cloud storage
-rclone copy remote-backup:payg-vpn-backups/latest /opt/payg-vpn/restore/
+rclone copy remote-backup:payg-mng-backups/latest /opt/payg-mng/restore/
 
 # Decrypt configuration vault
 openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 \
-  -in /opt/payg-vpn/restore/secrets/vault.tar.gz.enc \
+  -in /opt/payg-mng/restore/secrets/vault.tar.gz.enc \
   -out vault.tar.gz \
   -pass pass:"YourProductionMasterPassphrase"
 
-tar -xzf vault.tar.gz -C /opt/payg-vpn/
+tar -xzf vault.tar.gz -C /opt/payg-mng/
 ```
 
 ### Step 3: Clone Codebase & Restore Media
 ```bash
-git clone https://github.com/payg-vpn-platform/core-services.git /opt/payg-vpn/core-services
-cp -r /opt/payg-vpn/keys /opt/payg-vpn/core-services/
-cp /opt/payg-vpn/.env /opt/payg-vpn/core-services/.env
+git clone https://github.com/payg-platform/core-services.git /opt/payg-mng/core-services
+cp -r /opt/payg-mng/keys /opt/payg-mng/core-services/
+cp /opt/payg-mng/.env /opt/payg-mng/core-services/.env
 
 # Restore uploads
-mkdir -p /opt/payg-vpn/core-services/data/prod/
-tar -xzf /opt/payg-vpn/restore/media/uploads.tar.gz -C /opt/payg-vpn/core-services/data/prod/
+mkdir -p /opt/payg-mng/core-services/data/prod/
+tar -xzf /opt/payg-mng/restore/media/uploads.tar.gz -C /opt/payg-mng/core-services/data/prod/
 ```
 
 ### Step 4: Boot Infrastructure & Restore Databases
 ```bash
-cd /opt/payg-vpn/core-services
+cd /opt/payg-mng/core-services
 
 # Start databases and message broker first
 docker compose -f docker-compose.all.yml --profile production up -d \
@@ -426,9 +426,9 @@ echo "Waiting 15 seconds for databases to initialize schemas..."
 sleep 15
 
 # Restore each database
-for DUMP in /opt/payg-vpn/restore/databases/*.sql.gz; do
+for DUMP in /opt/payg-mng/restore/databases/*.sql.gz; do
   DB_NAME=$(basename "$DUMP" .sql.gz)
-  CONTAINER="vpn-${DB_NAME//_/-}"  # Maps db name to container
+  CONTAINER="mng-${DB_NAME//_/-}"  # Maps db name to container
   CONTAINER="${CONTAINER%-db}-prod"
   
   echo "Restoring $DB_NAME into $CONTAINER..."

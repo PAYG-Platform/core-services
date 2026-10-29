@@ -72,5 +72,5 @@ class TelegramBotConfig(BaseModel):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     bot_token = Column(String(255), nullable=True)
-    bot_username = Column(String(100), default="PAYG_VPN_Bot", nullable=False)
+    bot_username = Column(String(100), default="PAYG_MNG_Bot", nullable=False)
     admin_telegram_id = Column(String(50), nullable=True)

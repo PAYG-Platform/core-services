@@ -20,7 +20,7 @@ from app.handlers.configs import register_configs_handlers
 from app.handlers.support import register_support_handlers
 from app.handlers.analytics import register_analytics_handlers
 from app.events.consumer import start_rabbitmq_consumer
-from vpn_shared.logger import setup_logging
+from mng_shared.logger import setup_logging
 
 logger = setup_logging("telegram-service")
 

@@ -1,6 +1,6 @@
 # 🌍 Multi-Server & Distributed Topology Runbook (Modular & Cloud-Ready)
 
-This runbook specifies the operational architecture and configuration patterns for deploying the **PAYG VPN Platform** across any arbitrary infrastructure: from dedicated per-service virtual servers and shared multi-tenant VPS instances to managed cloud backends (CloudAMQP, Redis Cloud, Managed PostgreSQL).
+This runbook specifies the operational architecture and configuration patterns for deploying the **PAYG MNG Platform** across any arbitrary infrastructure: from dedicated per-service virtual servers and shared multi-tenant VPS instances to managed cloud backends (CloudAMQP, Redis Cloud, Managed PostgreSQL).
 
 ---
 
@@ -31,7 +31,7 @@ This runbook specifies the operational architecture and configuration patterns f
 
 ## 1. Dynamic Topology Paradigms
 
-The PAYG VPN platform is completely decoupled. Every service relies solely on environment variables (`DATABASE_URL`, `RABBITMQ_URL`, `REDIS_URL`, `JWT_PUBLIC_KEY_PATH`). It does not matter whether a service shares a physical server or runs 5,000 miles away on a standalone node.
+The PAYG MNG platform is completely decoupled. Every service relies solely on environment variables (`DATABASE_URL`, `RABBITMQ_URL`, `REDIS_URL`, `JWT_PUBLIC_KEY_PATH`). It does not matter whether a service shares a physical server or runs 5,000 miles away on a standalone node.
 
 ```
                            ┌───────────────────────────────┐
@@ -67,8 +67,8 @@ The PAYG VPN platform is completely decoupled. Every service relies solely on en
 
 ### 1.2 Pattern B: Grouped / Hybrid Multi-Tenant VPS
 * A single high-resource VPS runs two or more services completely isolated from each other in separate directories:
-  * Directory `/opt/payg-vpn/billing-service` has its own `docker-compose.yml` and its own `.env`.
-  * Directory `/opt/payg-vpn/node-service` runs side-by-side with its own independent lifecycle.
+  * Directory `/opt/payg-mng/billing-service` has its own `docker-compose.yml` and its own `.env`.
+  * Directory `/opt/payg-mng/node-service` runs side-by-side with its own independent lifecycle.
 * Services never share internal networks unless needed; they route via localhost or the private mesh.
 
 ### 1.3 Pattern C: Cloud-Managed Infrastructure (DBaaS & SaaS Broker)
@@ -158,7 +158,7 @@ The platform strictly uses **Asymmetric RSA (RS256)** for JWT token signing and 
 
 2. **All Other Hosts (Node, Billing, Support, Traffic, Notifications, Config, Telegram):**
    * Require **ONLY** `jwt_public.pem` (mode `644`).
-   * Place `jwt_public.pem` inside that service's directory (e.g., `/opt/payg-vpn/<service-name>/keys/jwt_public.pem`).
+   * Place `jwt_public.pem` inside that service's directory (e.g., `/opt/payg-mng/<service-name>/keys/jwt_public.pem`).
    * If a peripheral server is compromised, attackers hold only the public verification key. **They cannot mint valid tokens, forge identities, or elevate user roles.**
 
 ---
@@ -178,7 +178,7 @@ version: '3.8'
 services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    container_name: vpn-rabbitmq-dedicated
+    container_name: mng-rabbitmq-dedicated
     restart: always
     environment:
       RABBITMQ_DEFAULT_USER: ${RMQ_USER:-admin}
@@ -221,7 +221,7 @@ version: '3.8'
 services:
   redis:
     image: redis:7-alpine
-    container_name: vpn-redis-dedicated
+    container_name: mng-redis-dedicated
     restart: always
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --bind 127.0.0.1 10.10.0.11
     ports:
@@ -271,17 +271,17 @@ When running services independently across different servers or directories, eac
 
 ### 5.1 Directory Layout for Independent Nodes
 
-On any target server, organize the deployment inside `/opt/payg-vpn/<service-name>`:
+On any target server, organize the deployment inside `/opt/payg-mng/<service-name>`:
 
 ```text
-/opt/payg-vpn/billing-service/
+/opt/payg-mng/billing-service/
 ├── Dockerfile                  # Copied or built from monorepo
 ├── docker-compose.yml          # Standalone service composition
 ├── .env                        # Local environment variables
 ├── requirements.txt            # Python dependencies
 ├── app/                        # Service source code
 ├── config/                     # Rate limits YAML
-├── shared-lib/                 # Standard vpn_shared package
+├── shared-lib/                 # Standard mng_shared package
 ├── keys/
 │   └── jwt_public.pem          # Verification public key
 ├── uploads/                    # Local storage for receipts (isolated to this host)
@@ -291,8 +291,8 @@ On any target server, organize the deployment inside `/opt/payg-vpn/<service-nam
 ### 5.2 Local Uploads & Media Storage Isolation
 
 Uploads are strictly tied to the service that handles them:
-* **Payment Receipts:** Handled exclusively by `billing-service` $\longrightarrow$ stored in `/opt/payg-vpn/billing-service/uploads/`.
-* **Ticket Media Attachments:** Handled exclusively by `support-service` $\longrightarrow$ stored in `/opt/payg-vpn/support-service/uploads/`.
+* **Payment Receipts:** Handled exclusively by `billing-service` $\longrightarrow$ stored in `/opt/payg-mng/billing-service/uploads/`.
+* **Ticket Media Attachments:** Handled exclusively by `support-service` $\longrightarrow$ stored in `/opt/payg-mng/support-service/uploads/`.
 
 By binding `./uploads:/app/uploads` locally, you do not need NFS, S3, or complex cross-server distributed storage. The service serves its own uploaded files locally via Nginx or FastAPI static mounts.
 
@@ -513,7 +513,7 @@ When using GitHub Actions (`.github/workflows/ci-cd.yml`), deployments are trigg
 2. **Automated Deployment Script Executed on Each Host:**
    ```bash
    set -e
-   cd /opt/payg-vpn/${SERVICE_NAME}
+   cd /opt/payg-mng/${SERVICE_NAME}
 
    # Pull new hardened image tag from GHCR
    docker compose pull ${SERVICE_NAME}

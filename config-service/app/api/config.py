@@ -3,12 +3,12 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from vpn_shared import EventKeys
+from mng_shared import EventKeys
 from app.database import get_db
 from app.models import PlatformSystemConfig
 from app.schemas import PublicPlatformConfigResponse, PlatformConfigUpdate
 from app.events.publisher import broker, publish_system_broadcast_event, publish_sync_interval_changed_event
-from vpn_shared.jwt_auth import get_current_user_payload
+from mng_shared.jwt_auth import get_current_user_payload
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ def get_or_create_platform_config(db: Session) -> PlatformSystemConfig:
     config = db.query(PlatformSystemConfig).first()
     if not config:
         config = PlatformSystemConfig(
-            brand_name="PAYG VPN",
+            brand_name="PAYG MNG",
             default_currency="IRT",
             default_language="en",
             default_theme="dark",

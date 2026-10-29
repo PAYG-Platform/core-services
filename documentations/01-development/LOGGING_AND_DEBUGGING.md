@@ -1,6 +1,6 @@
 # 📋 Logging & Debugging Runbook
 
-This guide specifies the operational tools, live log streaming methods, file inspection workflows, and diagnostic resolutions used to debug the **PAYG VPN Core Backend Services** in development mode.
+This guide specifies the operational tools, live log streaming methods, file inspection workflows, and diagnostic resolutions used to debug the **PAYG MNG Core Backend Services** in development mode.
 
 ---
 
@@ -78,34 +78,34 @@ Target an individual service container to isolate logs during active development
 
 ```bash
 # IAM Service (Auth, Registration, RS256 Token Issuance)
-docker logs -f vpn-iam-service-dev
+docker logs -f mng-iam-service-dev
 
 # Node Service (3X-UI Fleet Engine, V2Ray Subscriptions)
-docker logs -f vpn-node-service-dev
+docker logs -f mng-node-service-dev
 
 # Billing Service (Ledger, Waterfall Deductions, Top-ups, Refunds)
-docker logs -f vpn-billing-service-dev
+docker logs -f mng-billing-service-dev
 
 # Support Service (Tickets, Messages, Media Uploads)
-docker logs -f vpn-support-service-dev
+docker logs -f mng-support-service-dev
 
 # Notification Service (SSE Stream, Edge Warnings)
-docker logs -f vpn-notification-service-dev
+docker logs -f mng-notification-service-dev
 
 # Config Service (Branding, Policies, Sync Broadcasts)
-docker logs -f vpn-config-service-dev
+docker logs -f mng-config-service-dev
 
 # Traffic Service (Cron Metering, ISP Subnet Matching)
-docker logs -f vpn-traffic-service-dev
+docker logs -f mng-traffic-service-dev
 
 # Telegram Bot Service (Telethon Worker, FSM State)
-docker logs -f vpn-telegram-service-dev
+docker logs -f mng-telegram-service-dev
 
 # API Gateway (Nginx Request Proxying & Rewrites)
-docker logs -f vpn-api-gateway-dev
+docker logs -f mng-api-gateway-dev
 
 # RabbitMQ Message Broker
-docker logs -f vpn-rabbitmq-dev
+docker logs -f mng-rabbitmq-dev
 ```
 
 ---
@@ -213,7 +213,7 @@ curl -s http://localhost:8007/health  # Traffic
   ```yaml
   redis:
     image: redis:7-alpine
-    container_name: vpn-redis
+    container_name: mng-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:

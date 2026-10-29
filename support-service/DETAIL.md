@@ -1,6 +1,6 @@
 # 🎫 Support & Ticketing Helpdesk Service
 
-This microservice manages role-based helpdesk ticketing threads between Clients and Administrators, handles diagnostic media attachments (screenshots, traceroute logs, screen recordings up to 25MB), tracks read-receipt indicators, and consumes automated NOC tickets on route replacement shortages (`vpn.events.auto_support_ticket_requested`).
+This microservice manages role-based helpdesk ticketing threads between Clients and Administrators, handles diagnostic media attachments (screenshots, traceroute logs, screen recordings up to 25MB), tracks read-receipt indicators, and consumes automated NOC tickets on route replacement shortages (`mng.events.auto_support_ticket_requested`).
 
 ---
 
@@ -50,7 +50,7 @@ When using managed PostgreSQL, the local database container is bypassed entirely
 #    COMPOSE_PROFILES=""
 #    DATABASE_URL=postgresql://user:password@ep-cool-fog-12345.eu-central-1.neon.tech/support_db?sslmode=require
 
-# 2. Start the service alone (only vpn-support-service will be launched):
+# 2. Start the service alone (only mng-support-service will be launched):
 docker compose up -d
 ```
 
@@ -81,7 +81,7 @@ For developers or operators cloning the monorepo to a fresh VPS:
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/payg-vpn-platform/core-services.git
+git clone https://github.com/payg-platform/core-services.git
 cd core-services/support-service
 
 # 2. Setup environment and keys
@@ -112,7 +112,7 @@ curl -s http://127.0.0.1:8004/health
 tail -f logs/support-service.log
 
 # Stream container standard output (Docker stream)
-docker logs -f vpn-support-service
+docker logs -f mng-support-service
 ```
 
 ---

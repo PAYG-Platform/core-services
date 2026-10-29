@@ -18,7 +18,7 @@ services:
   # =========================================================================
   redis:
     image: redis:7-alpine
-    container_name: vpn-redis
+    container_name: mng-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
@@ -33,7 +33,7 @@ services:
   postgres-iam-dev:
     profiles: ["development"]
     image: postgres:17-alpine
-    container_name: vpn-postgres-iam-dev
+    container_name: mng-postgres-iam-dev
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-admin}
@@ -49,7 +49,7 @@ services:
   postgres-node-dev:
     profiles: ["development"]
     image: postgres:17-alpine
-    container_name: vpn-postgres-node-dev
+    container_name: mng-postgres-node-dev
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-admin}
@@ -65,7 +65,7 @@ services:
   postgres-billing-dev:
     profiles: ["development"]
     image: postgres:17-alpine
-    container_name: vpn-postgres-billing-dev
+    container_name: mng-postgres-billing-dev
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-admin}
@@ -81,7 +81,7 @@ services:
   postgres-support-dev:
     profiles: ["development"]
     image: postgres:17-alpine
-    container_name: vpn-postgres-support-dev
+    container_name: mng-postgres-support-dev
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-admin}
@@ -97,7 +97,7 @@ services:
   postgres-notification-dev:
     profiles: ["development"]
     image: postgres:17-alpine
-    container_name: vpn-postgres-notification-dev
+    container_name: mng-postgres-notification-dev
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-admin}
@@ -113,7 +113,7 @@ services:
   postgres-config-dev:
     profiles: ["development"]
     image: postgres:17-alpine
-    container_name: vpn-postgres-config-dev
+    container_name: mng-postgres-config-dev
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-admin}
@@ -129,7 +129,7 @@ services:
   rabbitmq-dev:
     profiles: ["development"]
     image: rabbitmq:3-management-alpine
-    container_name: vpn-rabbitmq-dev
+    container_name: mng-rabbitmq-dev
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RMQ_USER:-admin}
@@ -146,7 +146,7 @@ services:
     profiles: ["development"]
     build:
       context: ./api-gateway
-    container_name: vpn-api-gateway-dev
+    container_name: mng-api-gateway-dev
     restart: unless-stopped
     ports:
       - "8000:80"
@@ -180,7 +180,7 @@ services:
       dockerfile: ./iam-service/Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    container_name: vpn-iam-service-dev
+    container_name: mng-iam-service-dev
     restart: unless-stopped
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
@@ -195,7 +195,7 @@ services:
     volumes:
       - ./iam-service/app:/app/app
       - ./logs/iam-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./keys:/app/keys:ro
     logging: *default-logging
     depends_on:
@@ -216,7 +216,7 @@ services:
       - 1.1.1.1
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    container_name: vpn-node-service-dev
+    container_name: mng-node-service-dev
     restart: unless-stopped
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
@@ -232,7 +232,7 @@ services:
     volumes:
       - ./node-service/app:/app/app
       - ./logs/node-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./keys:/app/keys:ro
     logging: *default-logging
     depends_on:
@@ -250,7 +250,7 @@ services:
       dockerfile: ./billing-service/Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    container_name: vpn-billing-service-dev
+    container_name: mng-billing-service-dev
     restart: unless-stopped
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
@@ -263,7 +263,7 @@ services:
     volumes:
       - ./billing-service/app:/app/app
       - ./logs/billing-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./data/dev/uploads:/app/uploads
       - ./keys:/app/keys:ro
     logging: *default-logging
@@ -283,7 +283,7 @@ services:
       dockerfile: ./support-service/Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    container_name: vpn-support-service-dev
+    container_name: mng-support-service-dev
     restart: unless-stopped
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
@@ -296,7 +296,7 @@ services:
     volumes:
       - ./support-service/app:/app/app
       - ./logs/support-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./data/dev/uploads:/app/uploads
       - ./keys:/app/keys:ro
     logging: *default-logging
@@ -315,7 +315,7 @@ services:
       dockerfile: ./notification-service/Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    container_name: vpn-notification-service-dev
+    container_name: mng-notification-service-dev
     restart: unless-stopped
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
@@ -323,13 +323,13 @@ services:
       - RABBITMQ_URL=amqp://${RMQ_USER:-admin}:${RMQ_PASSWORD:-supersecret}@rabbitmq-dev:5672/
       - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
       - ENVIRONMENT=${ENVIRONMENT:-development}
-      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-PAYG_VPN_Bot}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-PAYG_MNG_Bot}
     ports:
       - "8005:8000"
     volumes:
       - ./notification-service/app:/app/app
       - ./logs/notification-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./keys:/app/keys:ro
     logging: *default-logging
     depends_on:
@@ -347,7 +347,7 @@ services:
       dockerfile: ./config-service/Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    container_name: vpn-config-service-dev
+    container_name: mng-config-service-dev
     restart: unless-stopped
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
@@ -360,7 +360,7 @@ services:
     volumes:
       - ./config-service/app:/app/app
       - ./logs/config-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./keys:/app/keys:ro
     logging: *default-logging
     depends_on:
@@ -374,7 +374,7 @@ services:
   postgres-traffic-dev:
     profiles: ["development"]
     image: postgres:17-alpine
-    container_name: vpn-postgres-traffic-dev
+    container_name: mng-postgres-traffic-dev
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-admin}
@@ -397,7 +397,7 @@ services:
       - 1.1.1.1
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    container_name: vpn-traffic-service-dev
+    container_name: mng-traffic-service-dev
     restart: unless-stopped
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
@@ -411,7 +411,7 @@ services:
     volumes:
       - ./traffic-service/app:/app/app
       - ./logs/traffic-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./keys:/app/keys:ro
     logging: *default-logging
     depends_on:
@@ -427,7 +427,7 @@ services:
     build:
       context: .
       dockerfile: ./telegram-service/Dockerfile
-    container_name: vpn-telegram-service-dev
+    container_name: mng-telegram-service-dev
     restart: unless-stopped
     env_file:
       - .env
@@ -442,7 +442,7 @@ services:
     volumes:
       - ./telegram-service/app:/app/app
       - ./logs/telegram-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./keys:/app/keys:ro
     logging: *default-logging
     depends_on:
@@ -459,7 +459,7 @@ services:
   postgres-iam-prod:
     profiles: ["production"]
     image: postgres:17-alpine
-    container_name: vpn-postgres-iam-prod
+    container_name: mng-postgres-iam-prod
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -473,7 +473,7 @@ services:
   postgres-node-prod:
     profiles: ["production"]
     image: postgres:17-alpine
-    container_name: vpn-postgres-node-prod
+    container_name: mng-postgres-node-prod
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -487,7 +487,7 @@ services:
   postgres-billing-prod:
     profiles: ["production"]
     image: postgres:17-alpine
-    container_name: vpn-postgres-billing-prod
+    container_name: mng-postgres-billing-prod
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -501,7 +501,7 @@ services:
   postgres-support-prod:
     profiles: ["production"]
     image: postgres:17-alpine
-    container_name: vpn-postgres-support-prod
+    container_name: mng-postgres-support-prod
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -515,7 +515,7 @@ services:
   postgres-notification-prod:
     profiles: ["production"]
     image: postgres:17-alpine
-    container_name: vpn-postgres-notification-prod
+    container_name: mng-postgres-notification-prod
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -529,7 +529,7 @@ services:
   postgres-config-prod:
     profiles: ["production"]
     image: postgres:17-alpine
-    container_name: vpn-postgres-config-prod
+    container_name: mng-postgres-config-prod
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -543,7 +543,7 @@ services:
   rabbitmq-prod:
     profiles: ["production"]
     image: rabbitmq:3-management-alpine
-    container_name: vpn-rabbitmq-prod
+    container_name: mng-rabbitmq-prod
     restart: always
     environment:
       RABBITMQ_DEFAULT_USER: ${RMQ_USER}
@@ -559,7 +559,7 @@ services:
     profiles: ["production"]
     build:
       context: ./api-gateway
-    container_name: vpn-api-gateway-prod
+    container_name: mng-api-gateway-prod
     restart: always
     ports:
       - "127.0.0.1:8000:80"
@@ -583,7 +583,7 @@ services:
     build:
       context: .
       dockerfile: ./iam-service/Dockerfile
-    container_name: vpn-iam-service-prod
+    container_name: mng-iam-service-prod
     restart: always
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-iam-prod:5432/${IAM_DB_NAME}
@@ -595,7 +595,7 @@ services:
     volumes:
       - ./iam-service/app:/app/app
       - ./logs/iam-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./keys:/app/keys:ro
     logging: *default-logging
     depends_on:
@@ -611,7 +611,7 @@ services:
     build:
       context: .
       dockerfile: ./node-service/Dockerfile
-    container_name: vpn-node-service-prod
+    container_name: mng-node-service-prod
     restart: always
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-node-prod:5432/${NODE_DB_NAME}
@@ -624,7 +624,7 @@ services:
     volumes:
       - ./node-service/app:/app/app
       - ./logs/node-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./keys:/app/keys:ro
     logging: *default-logging
     depends_on:
@@ -640,7 +640,7 @@ services:
     build:
       context: .
       dockerfile: ./billing-service/Dockerfile
-    container_name: vpn-billing-service-prod
+    container_name: mng-billing-service-prod
     restart: always
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-billing-prod:5432/${BILLING_DB_NAME}
@@ -650,7 +650,7 @@ services:
     volumes:
       - ./billing-service/app:/app/app
       - ./logs/billing-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./data/prod/uploads:/app/uploads
       - ./keys:/app/keys:ro
     logging: *default-logging
@@ -668,7 +668,7 @@ services:
     build:
       context: .
       dockerfile: ./support-service/Dockerfile
-    container_name: vpn-support-service-prod
+    container_name: mng-support-service-prod
     restart: always
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-support-prod:5432/${SUPPORT_DB_NAME}
@@ -678,7 +678,7 @@ services:
     volumes:
       - ./support-service/app:/app/app
       - ./logs/support-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./data/prod/uploads:/app/uploads
       - ./keys:/app/keys:ro
     logging: *default-logging
@@ -695,18 +695,18 @@ services:
     build:
       context: .
       dockerfile: ./notification-service/Dockerfile
-    container_name: vpn-notification-service-prod
+    container_name: mng-notification-service-prod
     restart: always
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-notification-prod:5432/${NOTIFICATION_DB_NAME}
       - RABBITMQ_URL=amqp://${RMQ_USER}:${RMQ_PASSWORD}@rabbitmq-prod:5672/
       - JWT_PUBLIC_KEY_PATH=/keys/jwt_public.pem
       - ENVIRONMENT=${ENVIRONMENT:-production}
-      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-PAYG_VPN_Bot}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-PAYG_MNG_Bot}
     volumes:
       - ./notification-service/app:/app/app
       - ./logs/notification-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./keys:/app/keys:ro
     logging: *default-logging
     depends_on:
@@ -722,7 +722,7 @@ services:
     build:
       context: .
       dockerfile: ./config-service/Dockerfile
-    container_name: vpn-config-service-prod
+    container_name: mng-config-service-prod
     restart: always
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-config-prod:5432/${CONFIG_DB_NAME}
@@ -732,7 +732,7 @@ services:
     volumes:
       - ./config-service/app:/app/app
       - ./logs/config-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./keys:/app/keys:ro
     logging: *default-logging
     depends_on:
@@ -746,7 +746,7 @@ services:
   postgres-traffic-prod:
     profiles: ["production"]
     image: postgres:17-alpine
-    container_name: vpn-postgres-traffic-prod
+    container_name: mng-postgres-traffic-prod
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -762,7 +762,7 @@ services:
     build:
       context: .
       dockerfile: ./traffic-service/Dockerfile
-    container_name: vpn-traffic-service-prod
+    container_name: mng-traffic-service-prod
     restart: always
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres-traffic-prod:5432/${TRAFFIC_DB_NAME}
@@ -775,7 +775,7 @@ services:
     volumes:
       - ./traffic-service/app:/app/app
       - ./logs/traffic-service:/app/logs
-      - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+      - ./shared-lib/mng_shared:/shared-lib/mng_shared
       - ./keys:/app/keys:ro
     logging: *default-logging
     depends_on:
@@ -791,7 +791,7 @@ services:
     build:
       context: .
       dockerfile: ./telegram-service/Dockerfile
-    container_name: vpn-telegram-service-prod
+    container_name: mng-telegram-service-prod
     restart: always
     env_file:
       - .env
@@ -806,7 +806,7 @@ services:
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-PAYG_VPN_Bot}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-PAYG_MNG_Bot}
       - LOG_DIR=/app/logs
     volumes:
       - ./keys:/app/keys:ro

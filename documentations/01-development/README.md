@@ -1,6 +1,6 @@
 # 🛠️ Local Development Guide
 
-This guide details how to set up, run, and develop the **PAYG VPN Core Backend Services** in local hot-reload development mode.
+This guide details how to set up, run, and develop the **PAYG MNG Core Backend Services** in local hot-reload development mode.
 
 ---
 
@@ -133,12 +133,12 @@ In development mode, each FastAPI microservice mounts its local source code fold
 ```yaml
 volumes:
   - ./billing-service/app:/app/app
-  - ./shared-lib/vpn_shared:/shared-lib/vpn_shared
+  - ./shared-lib/mng_shared:/shared-lib/mng_shared
   - ./keys:/app/keys:ro
 ```
 
 * **Instant Hot-Reloading:** Editing any file inside `<service-name>/app/` triggers an immediate Uvicorn reload inside the container without needing a rebuild.
-* **Shared Library Sync:** Editing any file in `shared-lib/vpn_shared/` propagates immediately to all running backend containers.
+* **Shared Library Sync:** Editing any file in `shared-lib/mng_shared/` propagates immediately to all running backend containers.
 
 ---
 

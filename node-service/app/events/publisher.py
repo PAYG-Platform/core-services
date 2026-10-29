@@ -3,7 +3,7 @@ import os
 import logging
 from typing import Optional, List
 from faststream.rabbit import RabbitBroker, RabbitExchange, ExchangeType
-from vpn_shared import EventKeys
+from mng_shared import EventKeys
 
 logger = logging.getLogger(__name__)
 
@@ -48,14 +48,14 @@ async def publish_traffic_consumed_event(payload: dict):
 
 async def publish_server_changed_event(
     user_id: Optional[str] = None,
-    server_name: str = "VPN Node",
+    server_name: str = "Traffic Routing Node",
     action: str = "updated",
     location_name: Optional[str] = None,
     message: Optional[str] = None,
     user_ids: Optional[List[str]] = None,
 ):
     """
-    Publishes a SERVER_CHANGED event when a VPN server node or user configuration changes.
+    Publishes a SERVER_CHANGED event when a Traffic Routing server node or user configuration changes.
     """
     target_uids = [str(u) for u in user_ids] if user_ids else ([str(user_id)] if user_id else [])
     payload = {
@@ -63,7 +63,7 @@ async def publish_server_changed_event(
         "user_ids": target_uids,
         "server_name": server_name,
         "action": action,
-        "location_name": location_name or "VPN Region",
+        "location_name": location_name or "Traffic Routing Region",
         "message": message
     }
     try:
@@ -88,7 +88,7 @@ async def publish_server_offline_event(
         "server_name": server_name,
         "api_url": api_url,
         "error_message": error_message or "Connection failed or host unreachable.",
-        "location_name": location_name or "VPN Region",
+        "location_name": location_name or "Traffic Routing Region",
         "affected_user_ids": affected_user_ids or []
     }
     try:
@@ -111,7 +111,7 @@ async def publish_server_recovered_event(
         "server_id": str(server_id),
         "server_name": server_name,
         "api_url": api_url,
-        "location_name": location_name or "VPN Region",
+        "location_name": location_name or "Traffic Routing Region",
         "affected_user_ids": affected_user_ids or []
     }
     try:

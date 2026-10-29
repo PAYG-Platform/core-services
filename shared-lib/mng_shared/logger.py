@@ -1,4 +1,4 @@
-# shared-lib/vpn_shared/logger.py
+# shared-lib/mng_shared/logger.py
 import os
 import sys
 import logging

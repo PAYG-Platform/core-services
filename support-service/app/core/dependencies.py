@@ -2,7 +2,7 @@
 import uuid
 from typing import Dict, Any
 from fastapi import Depends, Request
-from vpn_shared.jwt_auth import (
+from mng_shared.jwt_auth import (
     get_current_user_payload as shared_get_current_user_payload,
     extract_token_from_request,
     verify_jwt_token,

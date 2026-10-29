@@ -655,7 +655,7 @@ async def run_server_health_and_provisioning_sweep(db: Session) -> dict:
             srv.api_url, srv.api_token, server_id=srv.id, server_name=srv.name
         )
 
-        loc_name = srv.location.name if srv.location else "VPN Region"
+        loc_name = srv.location.name if srv.location else "Traffic Routing Region"
 
         if not is_reachable:
             if srv.is_reachable:

@@ -1,7 +1,7 @@
 # backend/billing-service/app/core/dependencies.py
 import uuid
 from fastapi import Depends
-from vpn_shared.jwt_auth import get_current_user_payload
+from mng_shared.jwt_auth import get_current_user_payload
 
 
 def get_current_user_id(payload: dict = Depends(get_current_user_payload)) -> uuid.UUID:

@@ -1,6 +1,6 @@
 # 🔐 Asymmetric Cryptography & Security Architecture (RS256)
 
-This document specifies the cryptographic foundations, key lifecycle procedures, token verification pipelines, and identity-hardening standards implemented across the **PAYG VPN Platform**.
+This document specifies the cryptographic foundations, key lifecycle procedures, token verification pipelines, and identity-hardening standards implemented across the **PAYG MNG Platform**.
 
 ---
 
@@ -24,7 +24,7 @@ This document specifies the cryptographic foundations, key lifecycle procedures,
 
 ## 1. Security Philosophy & Zero-Trust Model
 
-The PAYG VPN platform operates under a **Stateless Asymmetric Token Delegation Architecture**:
+The PAYG MNG platform operates under a **Stateless Asymmetric Token Delegation Architecture**:
 
 1. **Centralized Signing Authority:** Only the **`iam-service`** possesses the cryptographic capability to mint and sign access tokens.
 2. **Stateless Edge Verification:** Downstream microservices (`node-service`, `billing-service`, `support-service`, `notification-service`, `traffic-service`, and `config-service`) verify incoming user claims in-memory using an RSA Public Key without making synchronous HTTP calls or database lookups to `iam-service`.
@@ -210,13 +210,13 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
     return jwt.encode(to_encode, private_key, algorithm="RS256")
 ```
 
-### 6.2 Dual-Transport Extraction (`vpn_shared`)
+### 6.2 Dual-Transport Extraction (`mng_shared`)
 Every incoming HTTP request is evaluated for authentication via two channels:
 1. **HTTP-Only Cookie (`access_token`):** Primary transport for browsers and Web Portal SPAs (mitigating XSS extraction attacks).
 2. **Authorization Header (`Bearer <token>`):** Transport for programmatic API consumers, mobile clients, and testing suites.
 
 ```python
-# shared-lib/vpn_shared/jwt_auth.py
+# shared-lib/mng_shared/jwt_auth.py
 def extract_token_from_request(request: Request, cookie_name: str = "access_token") -> Optional[str]:
     # 1. Inspect Authorization Header
     auth_header = request.headers.get("Authorization")

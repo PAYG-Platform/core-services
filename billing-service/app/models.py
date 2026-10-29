@@ -188,7 +188,7 @@ class SystemFinancialSettings(BaseModel):
         default=30,
         nullable=False,
     )
-    # 1. Early Cutoff Safety Threshold in Toman (e.g. 50 Toman). Disables VPN when balance <= threshold.
+    # 1. Early Cutoff Safety Threshold in Toman (e.g. 50 Toman). Disables MNG when balance <= threshold.
     safety_cutoff_threshold = Column(Float, default=50.0, nullable=False)
 
     # 2. Maximum negative debt limit in Toman. NULL/None = Infinite negative (no limit).

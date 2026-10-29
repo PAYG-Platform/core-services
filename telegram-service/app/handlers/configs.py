@@ -48,7 +48,7 @@ def build_localized_configs_list_message(configs: list, lang: str = "en") -> str
     else:
         user_curr = configs[0].get("currency", "IRT") if configs else "IRT"
         unit_str = "$/GB" if user_curr == "USD" else "Toman/GB"
-        msg = f"🌐 **Your Active VPN Nodes ({total_str})**\n\n"
+        msg = f"🌐 **Your Active Traffic Routing Nodes ({total_str})**\n\n"
         for c in configs:
             loc = c.get("location", "Region")
             proto = c.get("protocol", "VLESS")
@@ -97,12 +97,12 @@ async def register_configs_handlers(bot):
                 )
             elif user_lang.startswith("ru"):
                 empty_msg = (
-                    "ℹ️ **Активные VPN-конфигурации не найдены.**\n\n"
+                    "ℹ️ **Активные Traffic Routing-конфигурации не найдены.**\n\n"
                     "Если баланс исчерпан, пополните счет для активации серверных узлов."
                 )
             else:
                 empty_msg = (
-                    "ℹ️ **No Active VPN Configurations Found.**\n\n"
+                    "ℹ️ **No Active Traffic Routing Configurations Found.**\n\n"
                     "If your wallet balance is empty, top up to activate your routes."
                 )
             await event.reply(empty_msg, buttons=main_menu_keyboard(user_lang))
@@ -302,7 +302,7 @@ async def register_configs_handlers(bot):
     async def on_cb_copy_all_configs(event):
         """
         Gathers all raw connection URIs from all active configs and presents
-        them in a single code block for 1-tap copying into any VPN client.
+        them in a single code block for 1-tap copying into any Traffic Routing client.
         """
         telegram_id = str(event.sender_id)
         user_id = await RedisFSM.get_user_id(telegram_id)

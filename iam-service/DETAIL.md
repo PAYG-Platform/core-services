@@ -1,6 +1,6 @@
 # 🔐 Identity and Access Management (IAM) Service
 
-The **IAM Service** is the central authentication authority for the **PAYG VPN Platform**. It manages user identities, password hashing (`bcrypt`), emergency account recovery (`12 recovery keys`), and issues cryptographically signed JWT access tokens using **Asymmetric RSA (RS256)**.
+The **IAM Service** is the central authentication authority for the **PAYG MNG Platform**. It manages user identities, password hashing (`bcrypt`), emergency account recovery (`12 recovery keys`), and issues cryptographically signed JWT access tokens using **Asymmetric RSA (RS256)**.
 
 ---
 
@@ -53,7 +53,7 @@ When using managed PostgreSQL, the local database container is bypassed entirely
 #    COMPOSE_PROFILES=""
 #    DATABASE_URL=postgresql://user:password@ep-cool-fog-12345.eu-central-1.neon.tech/iam_db?sslmode=require
 
-# 2. Start the service alone (only vpn-iam-service will be launched):
+# 2. Start the service alone (only mng-iam-service will be launched):
 docker compose up -d
 ```
 
@@ -84,7 +84,7 @@ For developers or operators cloning the monorepo to a fresh VPS:
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/payg-vpn-platform/core-services.git
+git clone https://github.com/payg-platform/core-services.git
 cd core-services/iam-service
 
 # 2. Setup environment and keys
@@ -118,7 +118,7 @@ curl -s http://127.0.0.1:8001/health
 tail -f logs/iam-service.log
 
 # Stream container standard output (Docker stream)
-docker logs -f vpn-iam-service
+docker logs -f mng-iam-service
 ```
 
 ---

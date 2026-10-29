@@ -2,7 +2,7 @@ import os
 import logging
 from typing import Optional
 from faststream.rabbit import RabbitBroker
-from vpn_shared import EventKeys
+from mng_shared import EventKeys
 
 logger = logging.getLogger(__name__)
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://admin:supersecret@rabbitmq:5672/")

@@ -252,7 +252,7 @@ def configs_list_keyboard(configs: list, lang: str = "en") -> List[List[Button]]
 
 
 def config_actions_keyboard(config_id: str, lang: str = "en") -> List[List[Button]]:
-    """Localized actions for an individual VPN node configuration."""
+    """Localized actions for an individual Traffic Routing node configuration."""
     lang_clean = (lang or "en").strip().lower()
 
     if lang_clean.startswith("fa"):

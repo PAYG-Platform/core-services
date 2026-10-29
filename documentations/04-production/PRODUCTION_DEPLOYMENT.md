@@ -1,6 +1,6 @@
 # 🏭 Production Deployment Guide & Hardening Runbook
 
-This guide specifies the operational procedures, environment configurations, container orchestration, SSL/TLS reverse proxy setups, and automated backup strategies required to deploy the **PAYG VPN Core Backend Services** into production.
+This guide specifies the operational procedures, environment configurations, container orchestration, SSL/TLS reverse proxy setups, and automated backup strategies required to deploy the **PAYG MNG Core Backend Services** into production.
 
 ---
 
@@ -28,7 +28,7 @@ In a single-host or clustered production environment, the backend uses container
     [ Host Nginx (Let's Encrypt SSL) ]
                     │ Reverse Proxy HTTP
                     ▼
-[ API Gateway (vpn-api-gateway-prod) : 127.0.0.1:8000 ]
+[ API Gateway (mng-api-gateway-prod) : 127.0.0.1:8000 ]
                     │
          Docker Bridge Network (vpn_net)
                     │
@@ -190,10 +190,10 @@ docker compose -f docker-compose.all.yml --profile production ps
 ```
 
 All containers should report `Up` with restart policy `always`:
-* `vpn-api-gateway-prod` (bound to `127.0.0.1:8000:80`)
-* `vpn-iam-service-prod`, `vpn-node-service-prod`, `vpn-billing-service-prod`, etc.
-* `vpn-rabbitmq-prod`
-* `vpn-postgres-*-prod` (7 isolated databases)
+* `mng-api-gateway-prod` (bound to `127.0.0.1:8000:80`)
+* `mng-iam-service-prod`, `mng-node-service-prod`, `mng-billing-service-prod`, etc.
+* `mng-rabbitmq-prod`
+* `mng-postgres-*-prod` (7 isolated databases)
 
 ---
 
@@ -299,7 +299,7 @@ for i in {1..10}; do
 done
 
 if [ "$HEALTHY" -ne 1 ]; then
-    echo "❌ Deployment verification failed! Check logs: docker logs vpn-${SERVICE}-prod"
+    echo "❌ Deployment verification failed! Check logs: docker logs mng-${SERVICE}-prod"
     exit 1
 fi
 
@@ -312,16 +312,16 @@ echo "✨ ${SERVICE} deployed and verified successfully."
 
 To protect user financial ledgers, subscription tokens, and 3X-UI server mappings, configure an automated daily backup cron job.
 
-### Backup Script (`/opt/payg-vpn/scripts/backup_dbs.sh`)
+### Backup Script (`/opt/payg-mng/scripts/backup_dbs.sh`)
 ```bash
 #!/bin/bash
 set -e
 
-BACKUP_DIR="/opt/payg-vpn/backups/$(date +%Y-%m-%d_%H%M%S)"
+BACKUP_DIR="/opt/payg-mng/backups/$(date +%Y-%m-%d_%H%M%S)"
 mkdir -p "$BACKUP_DIR"
 
 DATABASES=("iam_prod_db" "node_prod_db" "billing_prod_db" "support_prod_db" "notification_prod_db" "config_prod_db" "traffic_prod_db")
-CONTAINERS=("vpn-postgres-iam-prod" "vpn-postgres-node-prod" "vpn-postgres-billing-prod" "vpn-postgres-support-prod" "vpn-postgres-notification-prod" "vpn-postgres-config-prod" "vpn-postgres-traffic-prod")
+CONTAINERS=("mng-postgres-iam-prod" "mng-postgres-node-prod" "mng-postgres-billing-prod" "mng-postgres-support-prod" "mng-postgres-notification-prod" "mng-postgres-config-prod" "mng-postgres-traffic-prod")
 
 echo "📦 Starting automated database backup at $(date)..."
 
@@ -336,18 +336,18 @@ done
 
 # Backup Uploaded Media Receipts & Attachments
 echo "Backing up upload attachments..."
-tar -czf "${BACKUP_DIR}/uploads.tar.gz" -C /opt/payg-vpn/core-services/data/prod uploads
+tar -czf "${BACKUP_DIR}/uploads.tar.gz" -C /opt/payg-mng/core-services/data/prod uploads
 
 # Prune backups older than 14 days
-find /opt/payg-vpn/backups/* -type d -ctime +14 -exec rm -rf {} +
+find /opt/payg-mng/backups/* -type d -ctime +14 -exec rm -rf {} +
 
 echo "✅ Backup completed successfully at $BACKUP_DIR"
 ```
 
 ### Install Daily Cron Task
 ```bash
-chmod +x /opt/payg-vpn/scripts/backup_dbs.sh
-(crontab -l 2>/dev/null; echo "0 3 * * * /opt/payg-vpn/scripts/backup_dbs.sh >> /var/log/payg_backup.log 2>&1") | crontab -
+chmod +x /opt/payg-mng/scripts/backup_dbs.sh
+(crontab -l 2>/dev/null; echo "0 3 * * * /opt/payg-mng/scripts/backup_dbs.sh >> /var/log/payg_backup.log 2>&1") | crontab -
 ```
 
 ---

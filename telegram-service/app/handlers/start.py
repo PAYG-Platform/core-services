@@ -32,17 +32,17 @@ def get_multilingual_help_overview() -> str:
     simultaneously in English, Farsi, and Russian.
     """
     return (
-        "📖 **PAYG VPN Guide & Account Linking / راهنما و اتصال حساب / Руководство и привязка**\n\n"
+        "📖 **PAYG MNG Guide & Account Linking / راهنما و اتصال حساب / Руководство и привязка**\n\n"
         "────────────────────────────\n"
         "🇬🇧 **English:**\n"
-        "Welcome! To connect your Telegram to your PAYG VPN profile:\n"
+        "Welcome! To connect your Telegram to your PAYG MNG profile:\n"
         "1. Log in to your **Web Dashboard**.\n"
         "2. Go to **Account Settings** → **Telegram Notifications**.\n"
         "3. Click **Connect Telegram** or copy your link token (`tk_...`).\n"
         "4. Send `/start tk_your_token_here` in this chat or paste the token.\n\n"
         "────────────────────────────\n"
         "🇮🇷 **فارسی:**\n"
-        "خوش آمدید! جهت اتصال حساب تلگرام به پروفایل فیلترشکن خود:\n"
+        "خوش آمدید! جهت اتصال حساب تلگرام به پروفایل خود:\n"
         "۱. وارد **داشبورد کاربری** خود در وب‌سایت شوید.\n"
         "۲. به بخش **تنظیمات حساب کاربری** → **اعلانات تلگرام** بروید.\n"
         "۳. روی دکمه **اتصال به تلگرام** کلیک کرده یا توکن را کپی کنید.\n"
@@ -72,8 +72,8 @@ def get_extensive_english_guide() -> str:
         "• The bot mints short-lived asymmetric tokens (RS256) to query backend services securely.\n\n"
         "📊 **2. Status & Balance:**\n"
         "• Use `/status` or `/balance` to view your total usable credit, paid deposits, gift balance, active nodes, and your database language.\n"
-        "• **Safety Cutoff:** If your usable balance reaches 0 Toman or drops below the safety threshold, VPN routing is automatically paused until topped up.\n\n"
-        "🌐 **3. VPN Configurations & Universal Subscription:**\n"
+        "• **Safety Cutoff:** If your usable balance reaches 0 Toman or drops below the safety threshold, network traffic routing is automatically paused until topped up.\n\n"
+        "🌐 **3. Traffic Routing Configurations & Universal Subscription:**\n"
         "• Tap **My Configs** or use `/configs` to inspect each regional server (VLESS, XHTTP, Trojan).\n"
         "• **QR Code:** Tap **View QR Code** for any node to import directly into mobile apps.\n"
         "• **Copy Subscription Link:** Imports the universal `/sub/{token}` link into v2rayNG, Sing-box, or Shadowrocket, syncing active servers automatically.\n"
@@ -222,7 +222,7 @@ def get_localized_link_success_message(username: str, lang: str, sub_url: str = 
         return (
             f"🎉 **حساب کاربری شما با موفقیت متصل شد!**\n\n"
             f"خوش آمدید، **@{username}** عزیز!\n"
-            f"اکانت تلگرام شما با موفقیت به پنل فیلترشکن متصل گردید."
+            f"اکانت تلگرام شما با موفقیت به پنل متصل گردید."
             f"{sub_section_fa}\n"
             f"از طریق دکمه‌های منوی زیر می‌توانید در هر زمان موجودی را بررسی، سرورها را تعویض یا کیف پول خود را شارژ فرمایید."
         )
@@ -238,7 +238,7 @@ def get_localized_link_success_message(username: str, lang: str, sub_url: str = 
         return (
             f"🎉 **Account Linked Successfully!**\n\n"
             f"Welcome, **@{username}**!\n"
-            f"Your Telegram account is now bound to your PAYG VPN profile."
+            f"Your Telegram account is now bound to your PAYG MNG profile."
             f"{sub_section_en}\n"
             f"Use the menu below to check your balance, manage server configs, or top up your wallet anytime."
         )
@@ -261,12 +261,12 @@ def get_localized_welcome_back_message(username: str, lang: str) -> str:
     else:
         return (
             f"👋 **Welcome back, @{username}!**\n\n"
-            f"Use the buttons below to manage your subscription and VPN nodes."
+            f"Use the buttons below to manage your subscription and Traffic Routing nodes."
         )
 
 
 async def link_account_with_token(event, token: str, telegram_id: str):
-    await event.reply("⏳ Connecting your Telegram account to your PAYG VPN profile...")
+    await event.reply("⏳ Connecting your Telegram account to your PAYG MNG profile...")
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
             res = await client.post(

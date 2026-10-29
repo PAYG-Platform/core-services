@@ -25,7 +25,7 @@ from app.schemas import (
     AdminDirectRefundRequest,
 )
 from app.core.dependencies import get_current_user_id
-from vpn_shared.jwt_auth import get_current_user_payload
+from mng_shared.jwt_auth import get_current_user_payload
 
 router = APIRouter(prefix="/refunds", tags=["Refunds"])
 
@@ -494,7 +494,7 @@ async def process_refund(
 
                 bucket.balance += tx.amount
 
-                # Re-enable VPN configs if wallet was empty but now has positive balance
+                # Re-enable MNG configs if wallet was empty but now has positive balance
                 if total_before <= 0 and (total_before + tx.amount) > 0:
                     await publish_wallet_funded(str(tx.user_id))
     else:

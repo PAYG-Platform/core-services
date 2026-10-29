@@ -8,7 +8,7 @@ from app.database import SessionLocal
 from app.models import DailyTrafficUsage, UserIspTrafficUsage, TrafficSettings
 from app.services.isp_matcher import ISPMatcher
 from app.xui_client import XUIClient
-from vpn_shared.events import EventKeys
+from mng_shared.events import EventKeys
 
 logger = logging.getLogger(__name__)
 traffic_consumer_router = RabbitRouter()

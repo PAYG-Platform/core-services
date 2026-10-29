@@ -234,7 +234,7 @@ jobs:
           context: .
           file: ./${{ matrix.folder }}/Dockerfile
           load: true
-          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:${{ github.sha }}
+          tags: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mng-${{ matrix.service }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -242,7 +242,7 @@ jobs:
         if: matrix.changed == 'true'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:${{ github.sha }}
+          image-ref: ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mng-${{ matrix.service }}:${{ github.sha }}
           format: "table"
           exit-code: "0"
           ignore-unfixed: true
@@ -251,9 +251,9 @@ jobs:
       - name: Push Container Image to GHCR
         if: matrix.changed == 'true'
         run: |
-          docker tag ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:latest
-          docker push ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:${{ github.sha }}
-          docker push ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/vpn-${{ matrix.service }}:latest
+          docker tag ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mng-${{ matrix.service }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mng-${{ matrix.service }}:latest
+          docker push ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mng-${{ matrix.service }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ env.REPO_OWNER }}/mng-${{ matrix.service }}:latest
 
   # =========================================================================
   # 5. ZERO-DOWNTIME ROLLING DEPLOYMENT
@@ -363,7 +363,7 @@ jobs:
           port: ${{ matrix.port }}
           script: |
             set -e
-            cd /opt/payg-vpn/${{ matrix.folder }}
+            cd /opt/payg-mng/${{ matrix.folder }}
 
             # -------------------------------------------------------------
             # 1. AUTOMATIC CRYPTOGRAPHIC KEY DISTRIBUTION
@@ -427,7 +427,7 @@ jobs:
             # 4. HEALTH CHECK VERIFICATION GATE
             # -------------------------------------------------------------
             REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-            IMAGE_REFERENCE="${{ env.REGISTRY }}/${REPO_OWNER}/vpn-${{ matrix.service }}:${{ github.sha }}"
+            IMAGE_REFERENCE="${{ env.REGISTRY }}/${REPO_OWNER}/mng-${{ matrix.service }}:${{ github.sha }}"
 
             if [ "${{ matrix.service }}" != "telegram-service" ]; then
               echo "🏥 Verifying health check on port ${{ matrix.port_num }}..."
@@ -472,11 +472,11 @@ jobs:
               echo "🤖 Verifying Telegram worker container is running..."
               sleep 4
 
-              if docker ps --format '{{.Names}}' | grep -q "vpn-telegram-service"; then
+              if docker ps --format '{{.Names}}' | grep -q "mng-telegram-service"; then
                 echo "✅ Telegram worker container is active and running."
               else
                 echo "❌ CRITICAL: Telegram worker container failed to start!"
-                docker logs vpn-telegram-service --tail 50
+                docker logs mng-telegram-service --tail 50
 
                 if [ -n "$OLD_IMAGE" ]; then
                   echo "🔄 Restoring previously running Telegram worker image..."

@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from faststream.rabbit import RabbitBroker
-from vpn_shared import EventKeys
+from mng_shared import EventKeys
 
 from app.database import SessionLocal
 from app.models import Server, UserConfig, DailyTrafficUsage, UserIspTrafficUsage
@@ -24,7 +24,7 @@ async def run_traffic_sync(broker: RabbitBroker):
     5. Attributes and upserts usage into DailyTrafficUsage and UserIspTrafficUsage (by user_id and ip_address).
     6. Emits TRAFFIC_CONSUMED event to RabbitMQ for financial deduction in Billing Service.
     """
-    logger.info("Starting scheduled VPN traffic sync and ISP telemetry job...")
+    logger.info("Starting scheduled Traffic Routing traffic sync and ISP telemetry job...")
     db: Session = SessionLocal()
 
     try:

@@ -1,10 +1,10 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="vpn_shared",
+    name="mng_shared",
     version="1.0.0",
-    description="Shared utility library for PAYG VPN Microservices Platform",
-    author="PAYG VPN Team",
+    description="Shared utility library for PAYG MNG Microservices Platform",
+    author="PAYG MNG Team",
     packages=find_packages(),
     python_requires=">=3.10",
     install_requires=[

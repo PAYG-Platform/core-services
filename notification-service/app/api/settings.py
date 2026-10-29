@@ -18,11 +18,11 @@ from app.schemas import (
     TelegramBotConfigResponse,
     TelegramBotConfigUpdate
 )
-from vpn_shared.jwt_auth import get_current_user_payload
+from mng_shared.jwt_auth import get_current_user_payload
 
 router = APIRouter(prefix="/notifications/settings", tags=["Notification Settings & Telegram"])
 
-BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "PAYG_VPN_Bot")
+BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "PAYG_MNG_Bot")
 
 
 # ==========================================

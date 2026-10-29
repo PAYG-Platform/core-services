@@ -5,7 +5,7 @@ import asyncio
 from faststream.rabbit import RabbitBroker
 from app.config import RABBITMQ_URL
 from app.services.redis_client import RedisFSM
-from vpn_shared.events import EventKeys
+from mng_shared.events import EventKeys
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ async def start_rabbitmq_consumer(bot):
             else:
                 title = "🎁 **Gift Credit Received**"
                 lead = f"Administrator credited **{amt_str}** gift credit to your wallet."
-                status_line = "\n\nYour VPN configurations are active."
+                status_line = "\n\nYour Traffic Routing configurations are active."
                 text = f"{title}\n\n{lead}{memo_block}{status_line}"
 
         elif tx_type.lower() == "adjustment":
@@ -97,7 +97,7 @@ async def start_rabbitmq_consumer(bot):
                 text = f"{title}\n\n{lead}{memo_block}"
             else:
                 lead = f"Administrator credited **{amt_str}** to your wallet balance."
-                status_line = "\n\nYour VPN configurations are active."
+                status_line = "\n\nYour Traffic Routing configurations are active."
                 text = f"{title}\n\n{lead}{memo_block}{status_line}"
 
         elif status == "Rejected":
@@ -126,7 +126,7 @@ async def start_rabbitmq_consumer(bot):
                 )
             else:
                 title = "✅ **Top-Up Approved**"
-                text = f"{title}\n\nYour top-up of **{amt_str}**{ref_suffix} has been approved.\nYour wallet balance and VPN credentials have been updated."
+                text = f"{title}\n\nYour top-up of **{amt_str}**{ref_suffix} has been approved.\nYour wallet balance and Traffic Routing credentials have been updated."
 
         try:
             await bot.send_message(int(telegram_id), text)
@@ -173,7 +173,7 @@ async def start_rabbitmq_consumer(bot):
         telegram_id = await RedisFSM.get_telegram_id(user_id)
         if telegram_id:
             text = (
-                f"🛑 **VPN Service Disconnected**\n\n"
+                f"🛑 **Traffic Routing Service Disconnected**\n\n"
                 f"Your balance has reached 0 Toman or is below the safety threshold.\n"
                 f"Tap **Deposit / Top-up** to restore your connection."
             )
@@ -193,10 +193,10 @@ async def start_rabbitmq_consumer(bot):
             telegram_id = await RedisFSM.get_telegram_id(str(uid))
             if telegram_id:
                 text = (
-                    f"⚠️ **VPN Server Node Replaced**\n\n"
+                    f"⚠️ **Traffic Routing Server Node Replaced**\n\n"
                     f"Server `{old_srv}` was filtered and replaced with `{replacements}`.\n\n"
                     f"🔄 **Action Required:**\n"
-                    f"• Open your VPN app and tap **Update Subscription** to fetch the new working node.\n"
+                    f"• Open your Traffic Routing app and tap **Update Subscription** to fetch the new working node.\n"
                     f"• If you still experience issues, please replace the server via /configs or from your dashboard."
                 )
                 try:
@@ -211,39 +211,39 @@ async def start_rabbitmq_consumer(bot):
         if msg.get("user_id") and msg.get("user_id") not in raw_uids:
             raw_uids.append(msg.get("user_id"))
 
-        srv = msg.get("server_name", "VPN Node")
+        srv = msg.get("server_name", "Traffic Routing Node")
         action = msg.get("action", "updated")
-        loc = msg.get("location_name") or "VPN Node"
+        loc = msg.get("location_name") or "Traffic Routing Node"
         custom_msg = msg.get("message")
 
         for uid in raw_uids:
             telegram_id = await RedisFSM.get_telegram_id(str(uid))
             if telegram_id:
                 if action == "added":
-                    title = f"🌐 **New VPN Configuration Added: {loc}**"
+                    title = f"🌐 **New Traffic Routing Configuration Added: {loc}**"
                     text = (
                         f"{title}\n\n"
-                        f"A new VPN configuration for **{loc}** was added to your account by an administrator.\n\n"
+                        f"A new Traffic Routing configuration for **{loc}** was added to your account by an administrator.\n\n"
                         f"🔄 **Action Required:**\n"
-                        f"• **Update Subscription:** Tap **Update Subscription** in your VPN app (v2rayNG, Sing-box, Shadowrocket) to load it.\n"
+                        f"• **Update Subscription:** Tap **Update Subscription** in your Traffic Routing app (v2rayNG, Sing-box, Shadowrocket) to load it.\n"
                         f"• **Or View Config:** Use /configs in this bot or check the website to view and copy the connection URI."
                     )
                 elif action in ("removed", "deleted"):
-                    title = f"⚠️ **VPN Configuration Removed: {loc}**"
+                    title = f"⚠️ **Traffic Routing Configuration Removed: {loc}**"
                     text = (
                         f"{title}\n\n"
                         f"Your configuration for **{loc}** was removed by an administrator.\n\n"
                         f"🔄 **Action Required:**\n"
-                        f"• Please open your VPN app and tap **Update Subscription** to sync your active server list."
+                        f"• Please open your Traffic Routing app and tap **Update Subscription** to sync your active server list."
                     )
                 else:
-                    title = f"🔄 **VPN Configuration Updated: {loc}**"
-                    desc = custom_msg if custom_msg else f"Your VPN configuration for **{loc}** ({srv}) has been {action}."
+                    title = f"🔄 **Traffic Routing Configuration Updated: {loc}**"
+                    desc = custom_msg if custom_msg else f"Your Traffic Routing configuration for **{loc}** ({srv}) has been {action}."
                     text = (
                         f"{title}\n\n"
                         f"{desc}\n\n"
                         f"🔄 **Action Required:**\n"
-                        f"• Please open your VPN app and tap **Update Subscription** to sync the latest node settings.\n"
+                        f"• Please open your Traffic Routing app and tap **Update Subscription** to sync the latest node settings.\n"
                         f"• If unreachable or filtered, you can replace the route via /configs or from your dashboard."
                     )
 

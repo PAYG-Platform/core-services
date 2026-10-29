@@ -10,7 +10,7 @@ from app.schemas import (
     SystemFinancialSettingsResponse,
     SystemFinancialSettingsUpdate,
 )
-from vpn_shared.jwt_auth import get_current_user_payload
+from mng_shared.jwt_auth import get_current_user_payload
 
 router = APIRouter(prefix="/settings", tags=["Financial Settings"])
 

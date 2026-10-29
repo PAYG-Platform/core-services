@@ -50,7 +50,7 @@ When using managed PostgreSQL, the local database container is bypassed entirely
 #    COMPOSE_PROFILES=""
 #    DATABASE_URL=postgresql://user:password@ep-cool-fog-12345.eu-central-1.neon.tech/config_db?sslmode=require
 
-# 2. Start the service alone (only vpn-config-service will be launched):
+# 2. Start the service alone (only mng-config-service will be launched):
 docker compose up -d
 ```
 
@@ -81,7 +81,7 @@ For developers or operators cloning the monorepo to a fresh VPS:
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/payg-vpn-platform/core-services.git
+git clone https://github.com/payg-platform/core-services.git
 cd core-services/config-service
 
 # 2. Setup environment and keys
@@ -112,7 +112,7 @@ curl -s http://127.0.0.1:8006/health
 tail -f logs/config-service.log
 
 # Stream container standard output (Docker stream)
-docker logs -f vpn-config-service
+docker logs -f mng-config-service
 ```
 
 ---

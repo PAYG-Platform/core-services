@@ -315,7 +315,7 @@ class BackendAPIClient:
             return None
 
     # =========================================================================
-    # 5. NODE & VPN CONFIGURATIONS
+    # 5. NODE & Traffic Routing CONFIGURATIONS
     # =========================================================================
 
     async def get_my_configs(self) -> Optional[Dict[str, Any]]:

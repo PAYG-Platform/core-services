@@ -1,8 +1,8 @@
-# shared-lib/vpn_shared/__init__.py
-from vpn_shared.events import EventKeys
-from vpn_shared.jwt_auth import verify_jwt_token, parse_bearer_header, get_current_user_payload
-from vpn_shared.logger import setup_logging
-from vpn_shared.schemas import (
+# shared-lib/mng_shared/__init__.py
+from mng_shared.events import EventKeys
+from mng_shared.jwt_auth import verify_jwt_token, parse_bearer_header, get_current_user_payload
+from mng_shared.logger import setup_logging
+from mng_shared.schemas import (
     RoleEnum,
     CurrencyEnum,
     UserCreatedEvent,
@@ -12,7 +12,7 @@ from vpn_shared.schemas import (
     ServerOfflineEvent,
     SystemAuditLogEvent
 )
-from vpn_shared.utils import bytes_to_gb, gb_to_bytes
+from mng_shared.utils import bytes_to_gb, gb_to_bytes
 
 __all__ = [
     "EventKeys",

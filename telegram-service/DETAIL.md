@@ -63,7 +63,7 @@ For developers or operators cloning the monorepo to a fresh VPS:
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/payg-vpn-platform/core-services.git
+git clone https://github.com/payg-platform/core-services.git
 cd core-services/telegram-service
 
 # 2. Setup environment and keys
@@ -92,8 +92,8 @@ docker compose ps
 tail -f logs/telegram-service.log
 
 # 3. Stream container standard output (Look for successful authentication)
-docker logs -f vpn-telegram-service
-# Expected output: "Telethon Bot successfully authenticated as @PAYG_VPN_Bot"
+docker logs -f mng-telegram-service
+# Expected output: "Telethon Bot successfully authenticated as @PAYG_MNG_Bot"
 
 # 4. Interactive Test:
 # Open Telegram and send /start to your bot handle.

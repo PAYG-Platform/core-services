@@ -26,7 +26,7 @@ class PlatformSystemConfig(BaseModel):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     
     # Public Branding & UI Defaults
-    brand_name = Column(String(100), default="PAYG VPN", nullable=False)
+    brand_name = Column(String(100), default="PAYG MNG", nullable=False)
     default_currency = Column(String(10), default="IRT", nullable=False)
     default_language = Column(String(10), default="en", nullable=False)
     default_theme = Column(String(10), default="dark", nullable=False)
@@ -38,7 +38,7 @@ class PlatformSystemConfig(BaseModel):
     # 3X-UI Request Timeout in Seconds
     xui_request_timeout = Column(Float, default=15.0, nullable=False)
 
-    # Client Self-Service VPN Status Toggle Cooldown in Minutes (0 = Immediate / No Cooldown)
+    # Client Self-Service MNG Status Toggle Cooldown in Minutes (0 = Immediate / No Cooldown)
     client_status_cooldown_minutes = Column(Integer, default=60, nullable=False)
 
     # Route Replacement / Block Change Request Policy

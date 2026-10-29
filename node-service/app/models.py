@@ -48,7 +48,7 @@ class Location(BaseModel):
 
 
 class Server(BaseModel):
-    """3x-ui VPN Server Node with regional location and protocol user capacity limits."""
+    """3x-ui Traffic Routing Server Node with regional location and protocol user capacity limits."""
     __tablename__ = "servers"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
@@ -79,7 +79,7 @@ class Server(BaseModel):
 
 class UserConfig(BaseModel):
     """
-    VPN configuration assigned to a user.
+    Traffic Routing configuration assigned to a user.
     Users can have multiple configs in the same region if assigned by Admin.
     """
     __tablename__ = "user_configs"
@@ -103,7 +103,7 @@ class UserConfig(BaseModel):
 
 class ConfigReservation(BaseModel):
     """
-    Temporary reservation of one concrete VPN capacity slot.
+    Temporary reservation of one concrete Traffic Routing capacity slot.
     Lifecycle: Reserved -> Consumed | Released | Expired.
     """
     __tablename__ = "config_reservations"

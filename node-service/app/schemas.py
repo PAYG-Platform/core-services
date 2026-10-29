@@ -69,7 +69,7 @@ class InboundLimitItem(BaseModel):
 class ServerCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="Display name of the server node")
     location_id: Optional[uuid.UUID] = Field(None, description="Location/Region UUID the server belongs to")
-    api_url: str = Field(..., description="Base API URL of 3x-ui panel e.g. https://xcp.moshaservice.eu.cc:2053")
+    api_url: str = Field(..., description="Base API URL of 3x-ui panel e.g. https://example.com:2053")
     api_token: str = Field(..., description="API Secret Token or Bearer Token for 3x-ui")
     xui_version: Optional[str] = "v3.5.0"
     # Make domain_or_ip and port optional with auto-fallback defaults:

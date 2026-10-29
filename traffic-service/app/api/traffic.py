@@ -10,7 +10,7 @@ from sqlalchemy import func
 from app.database import get_db
 from app.models import DailyTrafficUsage, UserIspTrafficUsage
 from app.services.isp_matcher import ISPMatcher
-from vpn_shared.jwt_auth import get_current_user_payload
+from mng_shared.jwt_auth import get_current_user_payload
 
 logger = logging.getLogger(__name__)
 

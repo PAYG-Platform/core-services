@@ -29,8 +29,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.events.publisher import broker, publish_server_changed_event
 from app.xui_client import XUIClient
-from vpn_shared.events import EventKeys
-from vpn_shared.jwt_auth import get_current_user_payload
+from mng_shared.events import EventKeys
+from mng_shared.jwt_auth import get_current_user_payload
 from app.schemas import (
     ClientConfigResponse,
     UserConfigsListResponse,
@@ -509,7 +509,7 @@ async def replace_blocked_config(
         else:
             ticket_subject = f"[Auto-Report] Blocked Route Replacement: {loc_name} ({client_isp_name})"
             ticket_body = (
-                f"Client @{username_str} (ID: {user_id}) requested replacement for a blocked VPN route in region '{loc_name}'.\n\n"
+                f"Client @{username_str} (ID: {user_id}) requested replacement for a blocked Traffic Routing route in region '{loc_name}'.\n\n"
                 f"Current Config (Kept Active & Enabled):\n"
                 f"• Server: {server_display}\n"
                 f"• Inbound ID: {inbound_display}\n"

@@ -16,7 +16,7 @@ from app.sync_job import run_traffic_sync
 from app.services.isp_matcher import ISPMatcher
 from app.api.traffic import router as traffic_router
 from app.xui_client import XUIClient
-from vpn_shared.logger import setup_logging
+from mng_shared.logger import setup_logging
 
 logger = setup_logging("traffic-service")
 

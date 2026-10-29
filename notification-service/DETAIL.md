@@ -1,6 +1,6 @@
 # 🔔 Notification & Real-Time SSE Service
 
-This microservice manages the in-app notification inbox, user alert preferences, real-time Server-Sent Events (SSE) streaming (`/notifications/stream`), edge-triggered low-balance warnings (`is_low_balance_warned` latch), and dispatches push alerts to the Telegram bot worker (`vpn.events.notification_created`).
+This microservice manages the in-app notification inbox, user alert preferences, real-time Server-Sent Events (SSE) streaming (`/notifications/stream`), edge-triggered low-balance warnings (`is_low_balance_warned` latch), and dispatches push alerts to the Telegram bot worker (`mng.events.notification_created`).
 
 ---
 
@@ -50,7 +50,7 @@ When using managed PostgreSQL, the local database container is bypassed entirely
 #    COMPOSE_PROFILES=""
 #    DATABASE_URL=postgresql://user:password@ep-cool-fog-12345.eu-central-1.neon.tech/notification_db?sslmode=require
 
-# 2. Start the service alone (only vpn-notification-service will be launched):
+# 2. Start the service alone (only mng-notification-service will be launched):
 docker compose up -d
 ```
 
@@ -81,7 +81,7 @@ For developers or operators cloning the monorepo to a fresh VPS:
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/payg-vpn-platform/core-services.git
+git clone https://github.com/payg-platform/core-services.git
 cd core-services/notification-service
 
 # 2. Setup environment and keys
@@ -112,7 +112,7 @@ curl -s http://127.0.0.1:8005/health
 tail -f logs/notification-service.log
 
 # Stream container standard output (Docker stream)
-docker logs -f vpn-notification-service
+docker logs -f mng-notification-service
 ```
 
 ---

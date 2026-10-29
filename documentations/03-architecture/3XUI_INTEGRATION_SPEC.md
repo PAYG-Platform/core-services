@@ -1,6 +1,6 @@
 # ⚡ 3X-UI API Integration & Fleet Orchestration Specification
 
-This document provides technical specifications for integrating, managing, polling, and self-healing **3X-UI server fleets** (supporting both legacy v2.x and OpenAPI v3.5.0 panels) within the **PAYG VPN Platform**.
+This document provides technical specifications for integrating, managing, polling, and self-healing **3X-UI server fleets** (supporting both legacy v2.x and OpenAPI v3.5.0 panels) within the **PAYG MNG Platform**.
 
 ---
 

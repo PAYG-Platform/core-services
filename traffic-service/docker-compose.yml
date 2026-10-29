@@ -22,7 +22,7 @@ services:
   # ============================================================================
   postgres-traffic:
     image: postgres:17-alpine
-    container_name: vpn-postgres-traffic
+    container_name: mng-postgres-traffic
     profiles: ["local-db"]
     restart: always
     environment:
@@ -50,12 +50,12 @@ services:
   # ============================================================================
   traffic-service:
     # Image pulled by CI/CD pipeline from GHCR
-    image: ${IMAGE_NAME:-ghcr.io/payg-vpn-platform/vpn-traffic-service}:${IMAGE_TAG:-latest}
+    image: ${IMAGE_NAME:-ghcr.io/payg-mng-platform/mng-traffic-service}:${IMAGE_TAG:-latest}
     # Build fallback used when running: docker compose up --build
     build:
       context: ${BUILD_CONTEXT:-..}
       dockerfile: ${DOCKERFILE_PATH:-./traffic-service/Dockerfile}
-    container_name: vpn-traffic-service
+    container_name: mng-traffic-service
     restart: always
     extra_hosts:
       - "host.docker.internal:host-gateway"

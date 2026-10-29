@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
-from vpn_shared.schemas import RoleEnum
+from mng_shared.schemas import RoleEnum
 from app.database import Base
 
 

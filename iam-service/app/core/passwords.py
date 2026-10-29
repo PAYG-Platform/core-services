@@ -24,7 +24,7 @@ COMMON_WEAK_PASSWORDS_SET = {
     "guest", "guest123", "user", "user1234", "default", "default123",
     "system", "system123", "server", "server123", "cisco", "cisco123",
 
-    # VPN & Network Defaults
+    # Traffic Routing & Network Defaults
     "vpn12345", "vpn123456", "vpnpass", "vpnpassword", "proxy123",
     "paygvpn123", "tunnel123", "connect123", "mysecretvpn",
 

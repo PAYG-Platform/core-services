@@ -14,8 +14,8 @@ from app.models import (
     LocationCapacity,
 )
 from app.events.publisher import publish_wallet_empty, publish_wallet_low, publish_wallet_funded
-from vpn_shared.events import EventKeys
-from vpn_shared.schemas import RoleEnum
+from mng_shared.events import EventKeys
+from mng_shared.schemas import RoleEnum
 
 logger = logging.getLogger(__name__)
 billing_router = RabbitRouter()

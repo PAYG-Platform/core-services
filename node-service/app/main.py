@@ -4,10 +4,10 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy import text
-from vpn_shared.rate_limiter import RedisRateLimiter
+from mng_shared.rate_limiter import RedisRateLimiter
 from app.database import engine, Base, SessionLocal
 import app.models
-from vpn_shared.logger import setup_logging
+from mng_shared.logger import setup_logging
 from app.events.publisher import broker
 from app.events.consumer import node_router
 from app.api.servers import router as servers_router

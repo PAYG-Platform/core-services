@@ -16,9 +16,9 @@ from app.api.analytics import router as analytics_router
 from app.events.consumer import billing_router
 from app.events.publisher import broker
 from app.models import WalletBucket, SystemFinancialSettings
-from vpn_shared.rate_limiter import RedisRateLimiter
-from vpn_shared import EventKeys
-from vpn_shared.logger import setup_logging
+from mng_shared.rate_limiter import RedisRateLimiter
+from mng_shared import EventKeys
+from mng_shared.logger import setup_logging
 
 logger = setup_logging("billing-service")
 

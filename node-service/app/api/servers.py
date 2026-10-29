@@ -46,8 +46,8 @@ from app.events.publisher import (
     broker
 )
 import asyncio
-from vpn_shared import EventKeys
-from vpn_shared.jwt_auth import get_current_user_payload
+from mng_shared import EventKeys
+from mng_shared.jwt_auth import get_current_user_payload
 from app.services.provisioning import (
     provision_missing_users_for_location, 
     run_server_health_and_provisioning_sweep
@@ -1547,8 +1547,8 @@ async def admin_add_user_config(
             action="added",
             location_name=loc_name,
             message=(
-                f"A new VPN configuration for '{loc_name}' has been manually added to your account by an administrator.\n\n"
-                f"• What you should do: Please update/refresh your subscription link in your VPN application, "
+                f"A new Traffic Routing configuration for '{loc_name}' has been manually added to your account by an administrator.\n\n"
+                f"• What you should do: Please update/refresh your subscription link in your Traffic Routing application, "
                 f"or log in to the website / Telegram bot to view and copy your new configuration directly."
             )
         )
@@ -1598,8 +1598,8 @@ async def admin_delete_user_config(
             except Exception as e:
                 logger.warning(f"Failed removing client from 3X-UI during admin delete: {e}")
 
-        loc_name = cfg.location.name if cfg.location else "VPN Region"
-        srv_name = server.name if server else "VPN Node"
+        loc_name = cfg.location.name if cfg.location else "Traffic Routing Region"
+        srv_name = server.name if server else "Traffic Routing Node"
 
         db.delete(cfg)
         db.commit()
@@ -1611,8 +1611,8 @@ async def admin_delete_user_config(
             action="removed",
             location_name=loc_name,
             message=(
-                f"Your VPN configuration for '{loc_name}' was manually removed by an administrator.\n\n"
-                f"• What you should do: Please update/refresh your subscription link in your VPN application to sync your active server list."
+                f"Your Traffic Routing configuration for '{loc_name}' was manually removed by an administrator.\n\n"
+                f"• What you should do: Please update/refresh your subscription link in your Traffic Routing application to sync your active server list."
             )
         )
 

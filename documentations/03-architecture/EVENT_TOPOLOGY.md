@@ -1,6 +1,6 @@
 # 🔄 Event Bus Topology & AMQP Message Contracts
 
-This document specifies the RabbitMQ messaging topology, exchange configurations, queue bindings, and strict payload schemas implemented across the **PAYG VPN Platform**.
+This document specifies the RabbitMQ messaging topology, exchange configurations, queue bindings, and strict payload schemas implemented across the **PAYG MNG Platform**.
 
 ---
 
@@ -48,15 +48,15 @@ The platform uses **RabbitMQ 3.13 (Alpine)** on default AMQP port `5672` (Manage
                                          └──► [ traffic_config_settings_queue ]
 
 [ Point-to-Point Direct Queues ]
-  • vpn.events.wallet_low             ──► [ notification-service ]
-  • vpn.events.wallet_empty           ──► [ node-service ], [ notification-service ], [ telegram-service ]
-  • vpn.events.wallet_funded          ──► [ node-service ], [ notification-service ]
-  • vpn.events.payment_processed      ──► [ notification-service ], [ telegram-service ]
-  • vpn.events.grace_period_warning   ──► [ notification-service ], [ telegram-service ]
-  • vpn.events.config_released        ──► [ node-service ], [ notification-service ]
-  • vpn.events.config_reservation_*   ──► [ node-service ] ◄──► [ billing-service ]
-  • vpn.events.ticket_message_created ──► [ notification-service ], [ telegram-service ]
-  • vpn.events.notification_created   ──► [ telegram-service ]
+  • mng.events.wallet_low             ──► [ notification-service ]
+  • mng.events.wallet_empty           ──► [ node-service ], [ notification-service ], [ telegram-service ]
+  • mng.events.wallet_funded          ──► [ node-service ], [ notification-service ]
+  • mng.events.payment_processed      ──► [ notification-service ], [ telegram-service ]
+  • mng.events.grace_period_warning   ──► [ notification-service ], [ telegram-service ]
+  • mng.events.config_released        ──► [ node-service ], [ notification-service ]
+  • mng.events.config_reservation_*   ──► [ node-service ] ◄──► [ billing-service ]
+  • mng.events.ticket_message_created ──► [ notification-service ], [ telegram-service ]
+  • mng.events.notification_created   ──► [ telegram-service ]
 ```
 
 ---
@@ -82,7 +82,7 @@ All event payloads are serialized as JSON and validated using Pydantic schemas.
 }
 ```
 
-#### `vpn.events.user_suspended`
+#### `mng.events.user_suspended`
 * **Publisher:** `iam-service` | **Consumers:** `node-service`, `notification-service`
 * **Purpose:** Revokes client credentials, purges configs from 3X-UI panels, and sends security alerts.
 ```json
@@ -92,7 +92,7 @@ All event payloads are serialized as JSON and validated using Pydantic schemas.
 }
 ```
 
-#### `vpn.events.user_activated`
+#### `mng.events.user_activated`
 * **Publisher:** `iam-service` | **Consumers:** `node-service`, `billing-service`, `notification-service`
 * **Purpose:** Restores login access, evaluates wallet balance, and provisions active server nodes.
 ```json
@@ -102,7 +102,7 @@ All event payloads are serialized as JSON and validated using Pydantic schemas.
 }
 ```
 
-#### `vpn.events.user_vpn_paused` / `vpn.events.user_vpn_resumed`
+#### `mng.events.user_vpn_paused` / `mng.events.user_vpn_resumed`
 * **Publisher:** `iam-service` | **Consumer:** `node-service`
 * **Purpose:** Sets 3X-UI credentials `enable=false` (paused) or `enable=true` (resumed) for client self-service toggles without deleting database configs.
 ```json
@@ -131,34 +131,34 @@ All event payloads are serialized as JSON and validated using Pydantic schemas.
 }
 ```
 
-#### `vpn.events.server_offline`
+#### `mng.events.server_offline`
 * **Publisher:** `node-service` | **Consumer:** `notification-service`
 * **Purpose:** Sends technical failure logs to Admins and sanitized outage notices to affected Clients.
 ```json
 {
   "server_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
   "server_name": "Frankfurt-01 Fast Node",
-  "api_url": "https://de.vpn-node.com:2053",
+  "api_url": "https://de.mng-node.com:2053",
   "error_message": "Connection timed out after 15.0s",
   "location_name": "Germany",
   "affected_user_ids": ["3fa85f64-5717-4562-b3fc-2c963f66afa6"]
 }
 ```
 
-#### `vpn.events.server_recovered`
+#### `mng.events.server_recovered`
 * **Publisher:** `node-service` | **Consumer:** `notification-service`
 * **Purpose:** Notifies Admins and affected Clients that an offline node is back online.
 ```json
 {
   "server_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
   "server_name": "Frankfurt-01 Fast Node",
-  "api_url": "https://de.vpn-node.com:2053",
+  "api_url": "https://de.mng-node.com:2053",
   "location_name": "Germany",
   "affected_user_ids": ["3fa85f64-5717-4562-b3fc-2c963f66afa6"]
 }
 ```
 
-#### `vpn.events.auto_support_ticket_requested`
+#### `mng.events.auto_support_ticket_requested`
 * **Publisher:** `node-service` | **Consumer:** `support-service`
 * **Purpose:** Opens an urgent support ticket when route replacement has no alternative SNI available.
 ```json
@@ -177,7 +177,7 @@ All event payloads are serialized as JSON and validated using Pydantic schemas.
 
 ### 3.3 Financial Ledger & Grace Period
 
-#### `vpn.events.wallet_low`
+#### `mng.events.wallet_low`
 * **Publisher:** `billing-service` | **Consumer:** `notification-service`
 * **Purpose:** Edge-detected alert firing when usable credit drops below user's custom threshold.
 ```json
@@ -189,7 +189,7 @@ All event payloads are serialized as JSON and validated using Pydantic schemas.
 }
 ```
 
-#### `vpn.events.wallet_empty`
+#### `mng.events.wallet_empty`
 * **Publisher:** `billing-service` | **Consumers:** `node-service`, `notification-service`, `telegram-service`
 * **Purpose:** Disables client credentials on 3X-UI panels and begins grace period countdown.
 ```json
@@ -202,7 +202,7 @@ All event payloads are serialized as JSON and validated using Pydantic schemas.
 }
 ```
 
-#### `vpn.events.wallet_funded`
+#### `mng.events.wallet_funded`
 * **Publisher:** `billing-service` | **Consumers:** `node-service`, `notification-service`
 * **Purpose:** Re-enables credentials on 3X-UI panels, provisions missing locations, and re-arms warning latches.
 ```json
@@ -212,7 +212,7 @@ All event payloads are serialized as JSON and validated using Pydantic schemas.
 }
 ```
 
-#### `vpn.events.grace_period_warning`
+#### `mng.events.grace_period_warning`
 * **Publisher:** `billing-service` | **Consumers:** `notification-service`, `telegram-service`
 * **Purpose:** Sends daily countdown reminders (Day 1, 2, 3) before permanent configuration deletion.
 ```json
@@ -225,7 +225,7 @@ All event payloads are serialized as JSON and validated using Pydantic schemas.
 }
 ```
 
-#### `vpn.events.config_released`
+#### `mng.events.config_released`
 * **Publisher:** `billing-service` | **Consumers:** `node-service`, `notification-service`
 * **Purpose:** Permanently deletes expired client configs from 3X-UI and database when grace period ends.
 ```json
@@ -235,7 +235,7 @@ All event payloads are serialized as JSON and validated using Pydantic schemas.
 }
 ```
 
-#### `vpn.events.payment_processed`
+#### `mng.events.payment_processed`
 * **Publisher:** `billing-service` | **Consumers:** `notification-service`, `telegram-service`
 * **Purpose:** Informs Admins of pending submissions and notifies Clients of payment approval/rejection outcomes.
 ```json
@@ -273,7 +273,7 @@ This pipeline implements a 2-phase reservation protocol between `billing-service
         │◄── CONFIG_RESERVATION_CONSUMED ──────────┤
 ```
 
-#### 1. `vpn.events.config_reservation_requested`
+#### 1. `mng.events.config_reservation_requested`
 ```json
 {
   "user_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
@@ -283,7 +283,7 @@ This pipeline implements a 2-phase reservation protocol between `billing-service
 }
 ```
 
-#### 2. `vpn.events.config_reservation_reserved`
+#### 2. `mng.events.config_reservation_reserved`
 ```json
 {
   "reservation_id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
@@ -297,7 +297,7 @@ This pipeline implements a 2-phase reservation protocol between `billing-service
 }
 ```
 
-#### 3. `vpn.events.config_reservation_consume_requested`
+#### 3. `mng.events.config_reservation_consume_requested`
 ```json
 {
   "reservation_id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
@@ -307,7 +307,7 @@ This pipeline implements a 2-phase reservation protocol between `billing-service
 }
 ```
 
-#### 4. `vpn.events.config_reservation_consumed`
+#### 4. `mng.events.config_reservation_consumed`
 ```json
 {
   "reservation_id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
@@ -321,7 +321,7 @@ This pipeline implements a 2-phase reservation protocol between `billing-service
 }
 ```
 
-#### 5. `vpn.events.config_reservation_release_requested`
+#### 5. `mng.events.config_reservation_release_requested`
 ```json
 {
   "reservation_id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
@@ -347,7 +347,7 @@ This pipeline implements a 2-phase reservation protocol between `billing-service
 }
 ```
 
-#### `vpn.events.config_sync_interval_changed`
+#### `mng.events.config_sync_interval_changed`
 * **Publisher:** `config-service` | **Consumer:** `node-service`
 * **Purpose:** Dynamically reschedules the background 3X-UI traffic polling cron loop.
 ```json
@@ -356,14 +356,14 @@ This pipeline implements a 2-phase reservation protocol between `billing-service
 }
 ```
 
-#### `vpn.events.notification_created`
+#### `mng.events.notification_created`
 * **Publisher:** `notification-service` | **Consumer:** `telegram-service`
 * **Purpose:** Universal trigger consumed by the Telethon worker for instant push delivery.
 ```json
 {
   "user_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "notification_id": "5f6e7d8c-9b0a-1a2b-3c4d-5e6f7a8b9c0d",
-  "title": "🛑 VPN Connections Disabled - Balance Exhausted",
+  "title": "🛑 Connections Disabled - Balance Exhausted",
   "message": "Your usable wallet balance has reached 0. Configurations have been disabled."
 }
 ```

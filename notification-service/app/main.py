@@ -12,7 +12,7 @@ from app.api.notifications import router as notifications_router
 from app.api.settings import router as settings_router
 from app.events.consumer import notification_router
 from app.events.publisher import broker
-from vpn_shared.logger import setup_logging
+from mng_shared.logger import setup_logging
 
 logger = setup_logging("notification-service")
 

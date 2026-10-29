@@ -22,7 +22,7 @@ services:
   # ============================================================================
   postgres-billing:
     image: postgres:17-alpine
-    container_name: vpn-postgres-billing
+    container_name: mng-postgres-billing
     profiles: ["local-db"]
     restart: always
     environment:
@@ -50,12 +50,12 @@ services:
   # ============================================================================
   billing-service:
     # Image pulled by CI/CD pipeline from GHCR
-    image: ${IMAGE_NAME:-ghcr.io/payg-vpn-platform/vpn-billing-service}:${IMAGE_TAG:-latest}
+    image: ${IMAGE_NAME:-ghcr.io/payg-mng-platform/mng-billing-service}:${IMAGE_TAG:-latest}
     # Build fallback used when running: docker compose up --build
     build:
       context: ${BUILD_CONTEXT:-..}
       dockerfile: ${DOCKERFILE_PATH:-./billing-service/Dockerfile}
-    container_name: vpn-billing-service
+    container_name: mng-billing-service
     restart: always
     env_file:
       - .env

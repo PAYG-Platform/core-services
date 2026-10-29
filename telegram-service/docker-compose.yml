@@ -23,12 +23,12 @@ services:
   # ============================================================================
   telegram-service:
     # Image pulled by CI/CD pipeline from GHCR
-    image: ${IMAGE_NAME:-ghcr.io/payg-vpn-platform/vpn-telegram-service}:${IMAGE_TAG:-latest}
+    image: ${IMAGE_NAME:-ghcr.io/payg-mng-platform/mng-telegram-service}:${IMAGE_TAG:-latest}
     # Build fallback used when running: docker compose up --build
     build:
       context: ${BUILD_CONTEXT:-..}
       dockerfile: ${DOCKERFILE_PATH:-./telegram-service/Dockerfile}
-    container_name: vpn-telegram-service
+    container_name: mng-telegram-service
     restart: always
     env_file:
       - .env
@@ -37,7 +37,7 @@ services:
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-PAYG_VPN_Bot}
+      - TELEGRAM_BOT_USERNAME=${TELEGRAM_BOT_USERNAME:-PAYG_MNG_Bot}
       - API_GATEWAY_URL=${API_GATEWAY_URL}
       - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
       - IAM_SERVICE_URL=${IAM_SERVICE_URL}

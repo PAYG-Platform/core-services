@@ -17,7 +17,7 @@ import json
 import asyncio
 from fastapi.responses import StreamingResponse
 
-from vpn_shared.jwt_auth import verify_jwt_token, get_current_user_payload
+from mng_shared.jwt_auth import verify_jwt_token, get_current_user_payload
 from app.core.event_bus import manager
 
 router = APIRouter(prefix="/notifications", tags=["User Notifications"])

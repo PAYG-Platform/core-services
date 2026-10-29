@@ -4,7 +4,7 @@ import logging
 from faststream.rabbit import RabbitRouter
 from app.database import SessionLocal
 from app.models import IamSettings
-from vpn_shared.events import EventKeys
+from mng_shared.events import EventKeys
 
 logger = logging.getLogger(__name__)
 iam_router = RabbitRouter()

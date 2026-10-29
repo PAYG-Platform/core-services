@@ -1,6 +1,6 @@
-# 📚 PAYG VPN Platform — Documentation Suite
+# 📚 PAYG MNG — Metered Network Gateway  & Traffic Routing Platform Platform — Documentation Suite
 
-Welcome to the central technical documentation suite for the **PAYG VPN Core Backend Services**. This directory contains all architecture specifications, development runbooks, database schemas, cryptographic specs, and production deployment guides.
+Welcome to the central technical documentation suite for the **PAYG MNG Core Backend Services**. This directory contains all architecture specifications, development runbooks, database schemas, cryptographic specs, and production deployment guides.
 
 ---
 

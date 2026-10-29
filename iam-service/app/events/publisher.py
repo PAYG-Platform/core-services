@@ -4,7 +4,7 @@ import uuid
 import logging
 from typing import Optional, Union
 from faststream.rabbit import RabbitBroker
-from vpn_shared import EventKeys
+from mng_shared import EventKeys
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +49,7 @@ async def publish_connection_processed_event(
     status: str
 ):
     """
-    Emits CONNECTION_PROCESSED event to RabbitMQ for notification-service
-    when a reseller accepts or rejects a client's connection request.
+    Emits CONNECTION_PROCESSED event to RabbitMQ for notification-service.
     """
     payload = {
         "client_id": str(client_id),

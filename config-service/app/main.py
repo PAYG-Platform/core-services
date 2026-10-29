@@ -9,7 +9,7 @@ from app.database import engine, Base
 from app.api.config import router as config_router
 from app.events.publisher import broker
 from app.events.consumer import config_router as event_router
-from vpn_shared.logger import setup_logging
+from mng_shared.logger import setup_logging
 
 logger = setup_logging("config-service")
 

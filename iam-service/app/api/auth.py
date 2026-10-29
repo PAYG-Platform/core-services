@@ -25,7 +25,7 @@ from app.core.security import (
     decode_access_token
 )
 from app.events.publisher import publish_user_created_event, publish_password_changed_event
-from vpn_shared.schemas import RoleEnum
+from mng_shared.schemas import RoleEnum
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
